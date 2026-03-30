@@ -1,0 +1,25 @@
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px'}}}%%
+flowchart TD
+    MSG["Сообщение"] --> DERIVER["Deriver"]
+    MSG --> PREFETCH["Prefetch"]
+
+    DERIVER -->|факты| CONCL[("Conclusions")]
+    DERIVER -.->|триггер| DREAM["Dreaming"]
+    DREAM -->|выводы| CONCL
+    DREAM -->|обновление| CARD[("Peer Card")]
+
+    CARD -.->|always| PREFETCH
+    CONCL -.->|search| PREFETCH
+    SUMM[("Summaries")] -.->|history| PREFETCH
+
+    PREFETCH --> LLM["LLM"] --> REPLY["Ответ"]
+
+    style MSG fill:#fff9c4,stroke:#f9a825
+    style REPLY fill:#c8e6c9,stroke:#43a047
+    style PREFETCH fill:#bbdefb,stroke:#1e88e5
+    style LLM fill:#bbdefb,stroke:#1e88e5
+    style DERIVER fill:#e1bee7,stroke:#8e24aa
+    style DREAM fill:#f8bbd0,stroke:#d81b60
+    style CARD fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style CONCL fill:#bbdefb,stroke:#1565c0,stroke-width:2px
+    style SUMM fill:#d7ccc8,stroke:#795548
