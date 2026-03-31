@@ -615,3 +615,9 @@ Scoring: **0** = absent, **1** = partial, **2** = native
 ---
 
 *Report generated from 12 independent deep research sessions. Data as of 2026-03-31. Benchmark scores represent published results and may not be independently reproduced.*
+
+---
+
+## Roadmap
+
+![Roadmap](img/roadmap-phases.png)
