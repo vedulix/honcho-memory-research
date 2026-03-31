@@ -1,0 +1,81 @@
+{
+  "basic_info": {
+    "name": "LangMem",
+    "license": "MIT",
+    "release_date": "2025-02 (initial SDK launch, announced via LangChain blog)",
+    "last_commit": "2026-02 [uncertain]",
+    "github_stars": 1100,
+    "contributors": "15-20 [uncertain]",
+    "company": "LangChain, Inc.",
+    "funding": "LangChain raised $260M total: $10M seed (Benchmark, April 2023), $25M Series A (Sequoia Capital, Feb 2024, $200M valuation), $125M Series B (IVP, Sequoia, Benchmark, Amplify, CapitalG, Sapphire Ventures, Oct 2025, $1.25B valuation). 233 employees as of Feb 2026. LangMem is part of the broader LangChain/LangGraph ecosystem, not separately funded.",
+    "pricing_model": "Free OSS (MIT license). LangMem itself is free and open-source. When used with LangGraph Platform (managed): Developer plan free (100K nodes/mo), Plus plan (managed cloud, US/EU data residency), Enterprise plan (custom pricing, BYOC/self-hosted). LangMem's managed memory service provides additional long-term memory results for free. Core value comes from tight coupling with paid LangGraph Platform."
+  },
+  "architecture": {
+    "storage_backend": "Delegates to LangGraph's BaseStore abstraction. Built-in implementations: InMemoryStore (development, volatile), PostgresStore/AsyncPostgresStore (production, pgvector for semantic search). Also community: langmem-sqlite-vec (SQLite with vector search). Configurable embedding dimensions and providers (e.g., openai:text-embedding-3-small with 1536 dims). Not a standalone storage system -- requires LangGraph store or custom BaseStore implementation. Core API layer is stateless and can work with any storage.",
+    "extraction_method": "LLM-based via trustcall library. Uses trustcall.create_extractor for structured extraction through parallel tool calling. Two modes: (1) Collections (enable_inserts=True) -- extracts unbounded facts as individual searchable documents with UUIDs; (2) Profiles (Pydantic schemas) -- extracts structured data that updates in-place. Memory manager analyzes conversations against existing memories, generates create/update/delete operations. Also includes create_prompt_optimizer for procedural memory (prompt refinement from feedback). Typically 1-2 LLM calls per extraction operation. [uncertain]",
+    "dedup_strategy": "Multi-layer deduplication: (1) Write-side dedup -- during extraction, LLM compares new memories against existing ones via vector similarity, decides create/update/delete; (2) Background consolidation via ReflectionExecutor -- periodically merges near-duplicate memories using a higher similarity threshold (0.95) to minimize false merges, prunes stale entries; (3) Cross-chunk deduplication with highest-confidence properties and normalized-text facts.",
+    "temporal_support": "Metadata timestamps on memories (created_at, updated_at). No bi-temporal model. Contradiction resolution during extraction replaces outdated facts via update/delete operations. No explicit temporal versioning or history tracking -- latest state overwrites previous.",
+    "retrieval_method": "Vector semantic search via LangGraph BaseStore's search/asearch methods with natural language query term. Configurable embedding model for similarity scoring. Optional query_model parameter for optimized retrieval (separate LLM generates search queries before memory lookup). Post-filtering by metadata and namespace. No native BM25 or graph traversal.",
+    "data_model": "Three memory patterns: (1) Collections -- unbounded flat facts as individual documents, each with UUID, content, metadata, searchable via semantic similarity; (2) Profiles -- structured Pydantic schemas that update in-place, representing current state (e.g., user preferences); (3) Episodes -- successful interactions stored as learning examples using collection pattern with Episode schemas. All memories scoped by namespace (typically includes user_id). Namespace-based isolation prevents cross-user data leakage."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native fact extraction from conversations via create_memory_manager. LLM-based extraction with trustcall, structured output, create/update/delete operations. Core functionality of the library.",
+    "dreaming": "1 - Partial. ReflectionExecutor provides background/deferred memory processing: consolidation of near-duplicate memories, pruning stale entries, cross-chunk dedup. However, no deep pattern synthesis, preference shift detection, or abductive reasoning over accumulated memories.",
+    "conclusions": "0 - No typed reasoning (deductive, inductive, abductive) over user data. Memories are stored as extracted facts or structured profiles, not derived conclusions with reasoning types. Prompt optimizer learns behavioral patterns but does not produce typed conclusions.",
+    "peer_card": "1 - Partial via Profile memory pattern. Pydantic schema-based structured profiles that update in-place with core identity fields. However, not a guaranteed card with predefined fields -- developer must define the schema. No built-in profile template or guaranteed minimum fields.",
+    "prefetch": "1 - Partial. create_search_memory_tool retrieves relevant memories before LLM response via vector search within namespace. However, no structured context assembly combining card + facts + summary into a single prefetch payload. Developer assembles context manually.",
+    "dialectic": "0 - No built-in conversational interface to query user memory. Search returns raw memory results. No 'tell me what you know about this user' synthesis capability.",
+    "total_coverage": 5
+  },
+  "performance": {
+    "extraction_latency": "Depends on LLM provider. Typically 1-3 seconds per message for extraction (1-2 LLM calls via trustcall). Background consolidation via ReflectionExecutor is deferred and non-blocking. [uncertain]",
+    "retrieval_latency_p95": "Depends on storage backend. InMemoryStore: sub-millisecond. PostgresStore with pgvector: typically 10-50ms for vector search. No published p95 benchmarks from LangChain. [uncertain]",
+    "benchmark_locomo": "Not published. No official LangMem scores on LOCOMO benchmark. [uncertain]",
+    "benchmark_longmemeval": "Not published. No official LangMem scores on LongMemEval benchmark. [uncertain]",
+    "tokens_per_extraction": "Varies by extraction mode. Collection extraction: ~500-1500 tokens per operation (conversation context + schema + existing memories). Profile update: ~500-1000 tokens. Prompt optimization: higher due to feedback analysis. [uncertain]",
+    "cost_per_1k_messages": "Estimated $1-5 per 1K messages using GPT-4o-mini for extraction (1-2 LLM calls per message). Lower with self-hosted models. Higher with GPT-4o or Claude. Excludes embedding costs. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "Delegated to underlying storage backend. PostgresStore supports standard PostgreSQL scaling. Namespace-based isolation by user_id provides logical separation. No native application-level sharding in LangMem itself.",
+    "batch_api": "ReflectionExecutor supports background batch processing. Core API functions are stateless and can be parallelized. No dedicated bulk import/export API. [uncertain]",
+    "max_users_production": "Not disclosed for LangMem specifically. LangGraph Platform serves enterprise customers (Monday.com, Elastic, LinkedIn, 11x). LangMem is relatively new (2025) and production deployment scale is unknown. [uncertain]",
+    "concurrent_writes": "Handled by underlying store. PostgresStore uses PostgreSQL transaction isolation. InMemoryStore is in-process. ReflectionExecutor handles background writes asynchronously. No application-level write conflict resolution beyond LLM-based dedup.",
+    "storage_per_user": "Depends on embedding dimensions and backend. With OpenAI text-embedding-3-small (1536 dims): ~6KB per memory entry (embedding + metadata + content). At 1000 memories: ~6MB per user in PostgresStore. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "All providers supported by LangChain: OpenAI, Anthropic Claude, Google Gemini, AWS Bedrock, Azure OpenAI, Groq, Together AI, Ollama, vLLM, and 100+ via LiteLLM integration. LangMem uses LangChain's chat model abstraction, so any LangChain-compatible LLM works.",
+    "self_hosted_llm": "Yes. Can use Ollama, vLLM, or any LangChain-compatible self-hosted model for extraction. LangGraph store can also be fully self-hosted with PostgresStore.",
+    "structured_output_req": "Yes. Uses trustcall for structured extraction via parallel tool calling. Requires LLM with function/tool calling capability for memory extraction. Profile extraction requires Pydantic schema support.",
+    "embedding_flexibility": "Configurable via LangGraph store index configuration. Supports OpenAI embeddings (text-embedding-3-small/large), and any embedding model compatible with LangChain's embedding abstraction (Ollama, HuggingFace, Cohere, etc.). Configurable dimensions."
+  },
+  "production_readiness": {
+    "known_deployments": "No specifically named LangMem production deployments disclosed. Part of LangGraph ecosystem used by Monday.com, Elastic, 11x, LinkedIn. LangMem SDK launched in 2025 and is relatively new. DeepLearning.AI course indicates growing adoption. [uncertain]",
+    "critical_bugs": "Issue #112: LangMem truncation breaks LangGraph's expected tool-call/tool-message pairing. Issue #77: Summarization issues. Issue #125: PyPI publishing delays. Relatively low issue volume (~140 total issues as of early 2026). No critical security vulnerabilities reported. [uncertain]",
+    "documentation_quality": "4 - Good documentation. Official docs at langchain-ai.github.io/langmem with conceptual guide, API reference, tutorials, and examples. DeepLearning.AI course provides structured learning. DeepWiki auto-generated docs add detail. Blog posts explain architecture. However, some advanced use cases (custom stores, production scaling) have sparse coverage.",
+    "community_activity": "Moderate. ~1.1K GitHub stars, ~130 forks. Low issue volume (under 10 issues/month). Maintained by LangChain team (well-funded). Discussion forum available. Benefits from broader LangChain community but LangMem-specific community is small.",
+    "api_stability": "Pre-1.0 (v0.0.30 as of Oct 2025). API still evolving. Breaking changes possible between minor versions. Core API (create_memory_manager, create_prompt_optimizer) relatively stable. Store integration layer tied to LangGraph BaseStore API which is also evolving. No formal versioning policy. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes for self-hosted. LangMem + PostgresStore can be fully self-hosted. LangGraph Platform offers BYOC (bring your own cloud) and self-hosted Enterprise options on AWS/GCP/Azure. Managed cloud offers US and EU data residency.",
+    "compliance": "Via LangGraph Platform: HIPAA, SOC-2, GDPR compliant (Enterprise plan). Self-hosted: organization manages own compliance. 152-FZ: possible via self-hosted only. No LangMem-specific certifications -- inherits from LangGraph/LangSmith platform. [uncertain]",
+    "vendor_risk": "MODERATE-HIGH. Mitigants: MIT license, well-funded company ($260M, unicorn status), large ecosystem. Risks: (1) Tightly coupled to LangGraph/LangChain ecosystem -- using LangMem without LangGraph is possible but loses most value; (2) Pre-1.0 API with breaking changes; (3) LangChain ecosystem has history of rapid API churn (multiple major rewrites); (4) If LangChain pivots strategy, LangMem could be deprioritized; (5) Small dedicated team on LangMem vs core LangChain products.",
+    "migration_from_honcho": "Deriver mechanism transfers well (native extraction). Dreaming partially covered by ReflectionExecutor (consolidation only, no deep analysis). Peer Card partially covered by Profile pattern (requires custom schema definition). Conclusions and Dialectic Chat need complete rebuilding. Prefetch requires custom assembly. Key challenge: tight coupling to LangGraph BaseStore means migration also implies adopting LangGraph stack. Data model difference: Honcho uses typed conclusions and structured peer cards; LangMem uses collections/profiles/episodes without reasoning types. Migration effort: HIGH for full Honcho feature parity, MODERATE for basic fact extraction + profiles."
+  },
+  "uncertain": [
+    "last_commit",
+    "contributors",
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "benchmark_locomo",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "batch_api",
+    "max_users_production",
+    "storage_per_user",
+    "known_deployments",
+    "critical_bugs",
+    "api_stability",
+    "compliance"
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "basic_info": {
+    "name": "Cognee",
+    "license": "Apache 2.0",
+    "release_date": "2023 (exact date unknown, first version released before a Weaviate event pitch in 2023)",
+    "last_commit": "2026-03-14 (v0.5.5 release)",
+    "github_stars": 14800,
+    "contributors": 80,
+    "company": "Topoteretes / Cognee Inc., headquartered in Berlin, Germany. Founded 2023.",
+    "funding": "Total $9.09M across 2 rounds: $1.59M Seed (November 2024), $7.5M Seed (February 2026). Investors: Pebblebed, Vermilion Cliffs Ventures, 42CAP, Angel Invest Ventures, Combination Ventures, Bob Van Luijt (Weaviate founder), Alexander Dean.",
+    "pricing_model": "Open-source (Apache 2.0) with commercial tiers: Free Basic Plan (essential features), On-prem Subscription (EUR 1970/month), Platform Cloud Subscription (EUR 8.50 per 1M input tokens). Enterprise on-premises option with dedicated infrastructure, full data control, and hands-on support."
+  },
+
+  "architecture": {
+    "storage_backend": "Hybrid three-layer storage: (1) Graph store — default Kuzu, also supports Neo4j, FalkorDB, Amazon Neptune, Memgraph; (2) Vector store — default LanceDB, also supports Qdrant, pgvector, Redis, DuckDB, Pinecone, ChromaDB; (3) Relational store — default SQLite, also supports PostgreSQL. Redis can serve as both vector DB and structured relationship store. Amazon Neptune Analytics as hybrid vector+graph backend.",
+    "extraction_method": "LLM-based six-stage pipeline: classify documents, check permissions, extract chunks, LLM extracts entities and relationships using Pydantic models via Instructor or BAML (BoundaryML) for structured output, generate summaries, embed into vector store and commit edges to graph. Content is normalized to plain text, hashed for deduplication. Multiple LLM calls per message (entity extraction + summarization + embedding).",
+    "dedup_strategy": "Content hashing for document-level deduplication. Entity disambiguation through multi-pass extraction with deduplication — consistency across high number of runs increases confidence. Datasets organized with ownership and permissions.",
+    "temporal_support": "Native temporal cognification: when enabled, text is transformed into event-based knowledge graph with timestamps and intervals. Events become first-class node types connecting to entities through explicit temporal relationships (before, after, during). Creates layered temporal contexts enhancing semantic depth.",
+    "retrieval_method": "14 retrieval modes including: CHUNKS (pure vector similarity), INSIGHTS (graph entity relationships), SUMMARIES (pre-generated hierarchical summaries via vector search), GRAPH_COMPLETION (graph-aware summary answering), RAG_COMPLETION (traditional RAG), GRAPH_SUMMARY_COMPLETION, GRAPH_COMPLETION_COT (chain-of-thought over multi-hop traversals), CODE (code artifact retrieval), CYPHER (raw Cypher queries), NATURAL_LANGUAGE (NL to Cypher), FEELING_LUCKY (exploratory). Intelligent meta-search auto-selects best search type via LLM analysis.",
+    "data_model": "Entity-relation triples in knowledge graph. Events as first-class node types coexisting with entities. Documents chunked with embeddings. Hierarchical summaries stored as nodes. Graph edges represent relationships and temporal connections. Ontology-based grounding supported for structured knowledge engineering."
+  },
+
+  "honcho_coverage": {
+    "deriver": {
+      "score": 2,
+      "notes": "Native fact extraction via cognee.cognify() pipeline. Six-stage extraction: classify, permissions, chunk, LLM entity/relationship extraction, summarize, embed. Fully automated from cognee.add() to cognee.cognify()."
+    },
+    "dreaming": {
+      "score": 1,
+      "notes": "Partial via Dreamify — optimization framework that rewires knowledge graph connections (inspired by brain sleep processes). Uses Tree-structured Parzen Estimator (TPE) for pipeline parameter optimization. Memify post-processing pipeline enriches graph incrementally. However, not a continuous background process that automatically synthesizes patterns or resolves contradictions over time — requires explicit invocation."
+    },
+    "conclusions": {
+      "score": 1,
+      "notes": "Partial. GRAPH_COMPLETION_COT provides chain-of-thought reasoning over multi-hop graph traversals. INSIGHTS retrieves structured entity relationships. However, no explicit typed conclusion system (deductive/inductive/abductive) stored as separate entities. Reasoning happens at query time, not as persisted typed conclusions."
+    },
+    "peer_card": {
+      "score": 0,
+      "notes": "Absent. No built-in user profile or identity card concept. Cognee is document/knowledge-oriented rather than user-profile-oriented. User identity must be built on top by the application."
+    },
+    "prefetch": {
+      "score": 1,
+      "notes": "Partial. cognee.search() assembles context from graph traversal + vector search before LLM response generation. GRAPH_COMPLETION builds graph context then condenses before answering. However, no concept of automatically assembling card + relevant facts + summary as a pre-built context packet per user."
+    },
+    "dialectic": {
+      "score": 1,
+      "notes": "Partial. NATURAL_LANGUAGE search type allows natural language queries over the knowledge graph (converted to Cypher). FEELING_LUCKY enables exploratory retrieval. Multiple search types allow conversational querying. However, no dedicated 'tell me what you know about this user' dialectic chat interface — it's a search API, not a conversational memory Q&A system."
+    },
+    "total_coverage": 6
+  },
+
+  "performance": {
+    "extraction_latency": "Not publicly benchmarked with specific p50/p95 numbers. Claims 'millisecond responses' with tuned pipelines and caching for retrieval. Extraction involves multiple LLM calls so depends heavily on LLM provider latency. [uncertain]",
+    "retrieval_latency_p95": "Not publicly disclosed. CHUNKS search (pure vector) is fastest, bypassing graph and LLM. SUMMARIES search is also fast (pre-computed). GRAPH_COMPLETION modes are slower due to graph traversal + LLM generation. [uncertain]",
+    "benchmark_locomo": "No LOCOMO benchmark results found. [uncertain]",
+    "benchmark_longmemeval": "No LongMemEval benchmark results found. [uncertain]",
+    "tokens_per_extraction": "Not publicly disclosed. Pipeline involves entity extraction + summarization + embedding generation, so likely 2000-5000+ tokens per document chunk depending on content. [uncertain]",
+    "cost_per_1k_messages": "Not directly published. Cloud tier is EUR 8.50 per 1M input tokens. Self-hosted cost depends on LLM provider. Multiple LLM calls per message (extraction + summarization) means cost scales with document complexity. [uncertain]"
+  },
+
+  "scalability": {
+    "sharding_support": "Not explicitly documented. Backend databases (Neo4j, PostgreSQL, Qdrant) support sharding natively, but Cognee itself does not expose sharding configuration. Dataset-level organization with ownership and permissions provides logical separation. [uncertain]",
+    "batch_api": "Yes. cognee.add() supports batch document ingestion from 30+ source formats. cognee.cognify() processes all added documents in a pipeline. REST API available for programmatic access. Benchmarks ran on Modal's serverless infrastructure with parallel evaluation jobs.",
+    "max_users_production": "Claims 70+ enterprise clients and 1M pipeline/month in production. Specific maximum concurrent user numbers not disclosed. [uncertain]",
+    "concurrent_writes": "Not explicitly documented. Pipeline is async (await cognee.add/cognify/search). v0.5.5 fixed duplication bugs from rapid consecutive saves, suggesting concurrent write handling was improved. [uncertain]",
+    "storage_per_user": "Not publicly disclosed. Depends on graph DB, vector DB, and relational DB backend choices. Graph stores (Kuzu/Neo4j) + vector stores (LanceDB/Qdrant) + relational (SQLite/PostgreSQL) each contribute to total. [uncertain]"
+  },
+
+  "llm_flexibility": {
+    "supported_providers": "OpenAI, Anthropic, Azure OpenAI, Ollama, Google (via LiteLLM), and 7+ major providers through LiteLLM integration. Custom provider support available.",
+    "self_hosted_llm": "Yes. Full Ollama support with dedicated documentation and tutorials. BAML (BoundaryML) works more reliably than Instructor with Ollama for structured output. Can run 100% local with Ollama for both LLM and embeddings.",
+    "structured_output_req": "Yes. Uses Pydantic models with Instructor or BAML for structured LLM output. BAML recommended for Ollama. LLM must return structured entity/relationship data during extraction.",
+    "embedding_flexibility": "Supports multiple embedding providers: OpenAI embeddings, Ollama embeddings (nomic-embed-text 768d, Mistral), and others via LiteLLM. Important caveat: mixing Ollama LLM with OpenAI embeddings may cause NoDataError — recommended to use same provider for both."
+  },
+
+  "production_readiness": {
+    "known_deployments": "Claims 70+ enterprise clients, 1M pipeline/month in production. Specific named deployments not publicly disclosed. Graduated from GitHub Secure Open Source Program. Integrations with Redis, Amazon Neptune Analytics, FalkorDB, Qdrant, LangChain, LangGraph, Claude Agent SDK, Goose, n8n. [uncertain]",
+    "critical_bugs": "v0.5.5 fixed: memory duplication after rapid consecutive saves, session-loss bugs causing temporary retrieval failures, rare crash on large memory set export, relevance scoring returning overly broad matches for short queries. Ollama+OpenAI embedding mixing causes NoDataError (workaround: use same provider for both). Managed cloud service described as 'newer and less battle-tested' by independent reviewers.",
+    "documentation_quality": 4,
+    "community_activity": "Active: 14.8k GitHub stars, 80+ contributors, community plugins repo (cognee-community), Discord channel for support. 2-business-day response time target. Regular monthly blog updates. CI validates semantic PR titles. Multiple integration tutorials published. Issues labeled 'good-first-issue' for newcomers.",
+    "api_stability": "Pre-1.0 (currently v0.5.5). API evolving but recent releases focus on stability and consistency. v0.5.5 included 'API usability tweaks with more consistent responses and clearer error messages.' Breaking changes possible before 1.0. No formal versioning policy documented. [uncertain]"
+  },
+
+  "enterprise_fit": {
+    "data_residency": "Yes. Fully self-hostable with on-premises deployment option. Supports 100% local operation with Ollama (no external API calls). Air-gapped enterprise deployment supported. All storage backends can be self-hosted (Kuzu, Neo4j, PostgreSQL, LanceDB, Qdrant).",
+    "compliance": "Graduated from GitHub Secure Open Source Program (security-focused). No explicit SOC2, HIPAA, or GDPR certifications mentioned. Self-hosted deployment enables data sovereignty. Independent reviewers note compliance certifications may not be mature enough yet for strict enterprise requirements. [uncertain]",
+    "vendor_risk": "Low-moderate. Apache 2.0 license (permissive, no copyleft risk). $9.09M funding provides runway. 14.8k stars and 80+ contributors indicate healthy community. Pre-1.0 API means potential breaking changes. Multi-backend support (Neo4j, Kuzu, pgvector, etc.) reduces lock-in to any single storage vendor. Company is VC-backed startup (Berlin), which carries typical startup risk.",
+    "migration_from_honcho": "Deriver: transfers well — Cognee's cognify pipeline covers fact extraction. Dreaming: partial — Dreamify/Memify provide optimization but not continuous background analysis. Conclusions: needs rebuilding — no typed conclusion system. Peer Card: needs full rebuilding — no user profile concept. Prefetch: partial — search API provides context assembly but no automatic per-user prefetch. Dialectic: needs adaptation — search API exists but no conversational memory Q&A interface. Estimated effort: medium-high. Core extraction and graph storage are strong, but user-centric features (profile, dialectic, typed conclusions) need custom implementation on top."
+  },
+
+  "uncertain": [
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "benchmark_locomo",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "sharding_support",
+    "max_users_production",
+    "concurrent_writes",
+    "storage_per_user",
+    "known_deployments",
+    "api_stability",
+    "compliance"
+  ]
+}

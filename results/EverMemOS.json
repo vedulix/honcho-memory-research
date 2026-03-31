@@ -1,0 +1,90 @@
+{
+  "basic_info": {
+    "name": "EverMemOS",
+    "license": "Apache 2.0",
+    "release_date": "2025-01 (arXiv paper 2601.02163); cloud service launched 2026-02-03",
+    "last_commit": "2026-03-08",
+    "github_stars": "~2500 [uncertain]",
+    "contributors": "Unknown [uncertain]",
+    "company": "EverMind AI — tech incubation project under Shanda Investment Group (Chen Tianqiao). Backed by TCCI (Tianqiao and Chrissy Chen Institute).",
+    "funding": "Backed by TCCI / Shanda Group. No publicly disclosed VC rounds or specific amounts. $80,000 developer competition prize pool supported by OpenAI and AWS. [uncertain]",
+    "pricing_model": "Open-source (Apache 2.0) + Cloud SaaS. Cloud service offers free trial and subscription-based access. Custom deployment version for strategic partners. Personal version for hardware-integrated/MCP-enabled contexts. 50% subscription revenue sharing offered to competition winners. Specific pricing tiers not publicly disclosed. [uncertain]"
+  },
+  "architecture": {
+    "storage_backend": "Hybrid multi-DB: MongoDB (source of truth), Elasticsearch (keyword/BM25 index), Milvus (vector index). MemorySyncService writes to all three stores simultaneously. Strict 5-layer architecture with separation of concerns.",
+    "extraction_method": "LLM-based with three-phase engram lifecycle. (1) Episodic Trace Formation: ConvMemCellExtractor detects conversation boundaries via hard limits (8192 tokens, 50 messages) or LLM-based detection, creating MemCells with episodic traces, atomic facts, and time-bounded Foresight signals. (2) Specialized extractors dispatch by MemoryType: Episode, Foresight, and EventLog extraction run in parallel via asyncio.gather(). Multiple LLM calls per MemCell extraction. (3) Async post-processing: ClusterManager and ProfileManager run asynchronously for memory clustering and profile aggregation.",
+    "dedup_strategy": "Semantic Consolidation phase: MemCells are organized into thematic MemScenes, distilling stable semantic structures. Profile maintains Explicit facts with temporal tracking and Implicit traits. Known limitation: contradiction accumulation — new episodes can contradict earlier profile entries, and without explicit conflict resolution the profile may hold both claims simultaneously (open issue #133 on GitHub for consolidation drift detection).",
+    "temporal_support": "Metadata timestamps with temporal tracking on explicit profile facts. Foresight signals provide time-bounded predictions. MemCells capture temporal boundaries of conversations. No full bi-temporal model, but temporal awareness is embedded in the engram lifecycle. Temporal tasks show +16.1% improvement over baselines on LoCoMo.",
+    "retrieval_method": "Hybrid multi-strategy: BM25 keyword search (Elasticsearch), vector search (Milvus), reciprocal-rank-fusion (RRF), and optional LLM-guided multi-round agentic retrieval. Dual-system approach: fast retrieval (pure BM25, no LLM calls) for latency-sensitive simple queries; multi-hop agentic reasoning for complex tasks. MemScene-guided retrieval composes necessary and sufficient context for downstream reasoning.",
+    "data_model": "Hierarchical engram-inspired model. Four memory types: (1) MemCells — atomic units capturing episodic traces, facts, and foresight from conversation segments. (2) MemScenes — thematic clusters of related MemCells, distilling stable semantic structures. (3) User Profile — compact representation with Explicit facts (temporal tracking) and Implicit traits (inferred preferences/habits). (4) EventLog — atomic event records. Covers episodes, profiles, preferences, relationships, semantic knowledge, basic facts, and core memories."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native. Episodic Trace Formation converts dialogue streams into MemCells with atomic facts, episodic traces, and foresight signals. Multiple specialized extractors (Episode, Foresight, EventLog) run in parallel. Core functionality of the system.",
+    "dreaming": "2 - Native. Semantic Consolidation phase runs asynchronously (ClusterManager + ProfileManager): organizes MemCells into thematic MemScenes, distills stable semantic structures, detects patterns across episodes, updates persistent user profiles. This is explicit offline/async analysis that synthesizes patterns and resolves (some) contradictions.",
+    "conclusions": "1 - Partial. Foresight signals provide time-bounded predictions (forward-looking inferences). User Profile includes Implicit traits — inferred preferences and habits. However, no explicit typed reasoning taxonomy (deductive, inductive, abductive) over user data. Conclusions are embedded in profile consolidation rather than being first-class typed objects.",
+    "peer_card": "2 - Native. Persistent User Profile with two structured fields: Explicit facts (with temporal tracking) and Implicit traits (inferred preferences and habits). Maintained and updated automatically through Semantic Consolidation. Core component of the architecture.",
+    "prefetch": "2 - Native. Reconstructive Recollection phase: MemScene-guided agentic retrieval composes the necessary and sufficient context for downstream reasoning before each LLM response. Dual-system approach selects appropriate retrieval strategy (fast vs. agentic) based on query complexity.",
+    "dialectic": "1 - Partial. Memory Interleave supports multi-round, multi-hop reasoning across scattered memory segments. API provides memory query capabilities. However, no dedicated conversational interface specifically for 'tell me what you know about this user' style queries — the functionality is embedded in the retrieval system rather than being a standalone dialectic feature. [uncertain]",
+    "total_coverage": 10
+  },
+  "performance": {
+    "extraction_latency": "MemCell boundary detection: depends on conversation length (hard limits at 8192 tokens / 50 messages). Extraction runs parallel extractors via asyncio.gather() to minimize latency. Sub-3 second response time reported for memory-augmented responses with 1-3K token recall. Specific p50/p95 extraction latencies not publicly benchmarked. [uncertain]",
+    "retrieval_latency_p95": "Sub-3 seconds for full memory-augmented response (retrieval + context assembly). BM25-only path significantly faster (no LLM calls). Agentic multi-hop retrieval slower due to LLM reasoning rounds. Specific p95 not published. [uncertain]",
+    "benchmark_locomo": "93.05% accuracy — current SOTA as of 2026-03. +19.7% improvement on multi-hop reasoning tasks. +16.1% on temporal tasks. Cross-evaluation reproducibility rate of 92.32%. Outperforms all existing memory systems and full-context models.",
+    "benchmark_longmemeval": "83.0% overall accuracy. Outperforms MemOS by +5.2pp. Largest gains on knowledge update (+15.5pp) and assistant-actions (+17.9pp). SOTA on this benchmark as well.",
+    "tokens_per_extraction": "Retrieval condenses recall to 1-3K tokens per query (vs. full-context approaches using 26K+ tokens). Extraction tokens per MemCell depend on conversation segment size (up to 8192 tokens input). Dramatically fewer tokens than full-context baselines. [uncertain]",
+    "cost_per_1k_messages": "Not publicly disclosed. Depends on chosen LLM provider for extraction and agentic retrieval. Cloud service pricing not public. Token efficiency is a key selling point — far fewer tokens than full-context approaches, but multiple LLM calls per MemCell extraction. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "Delegated to underlying storage backends. MongoDB, Elasticsearch, and Milvus all support horizontal scaling/sharding natively. User isolation likely via user_id partitioning. [uncertain]",
+    "batch_api": "Async processing via asyncio.gather() for parallel extraction. ClusterManager and ProfileManager run as async background tasks. Batch capabilities for bulk operations not explicitly documented. [uncertain]",
+    "max_users_production": "Cloud service launched 2026-02. Competition attracted global developers. No publicly disclosed production user counts or enterprise deployment scale. [uncertain]",
+    "concurrent_writes": "Async architecture with parallel extraction pipelines. MemorySyncService writes to MongoDB, Elasticsearch, and Milvus simultaneously. Async post-processing for clustering and profiling. Specific concurrency handling (locking, conflict resolution) not publicly documented. [uncertain]",
+    "storage_per_user": "Multi-DB storage: MongoDB documents + Elasticsearch indices + Milvus vectors per user. Storage overhead higher than single-DB systems due to triple-write architecture. Specific per-user estimates not published. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "External LLM dependency for extraction and agentic retrieval. Specific supported providers not explicitly listed in public docs. Cloud service likely uses proprietary model configuration. OpenAI partnership (competition sponsor) suggests OpenAI models supported. [uncertain]",
+    "self_hosted_llm": "Open-source version (Apache 2.0) allows self-hosted deployment. LLM provider is configurable as external dependency. Whether specific self-hosted frameworks (vLLM, Ollama) are explicitly supported is not documented. [uncertain]",
+    "structured_output_req": "LLM-based extraction produces structured MemCells with typed memory fields (episodic traces, atomic facts, foresight signals). Likely requires structured output or function calling from LLM. [uncertain]",
+    "embedding_flexibility": "Milvus vector index suggests standard embedding model integration. Specific supported embedding models/providers not publicly documented. [uncertain]"
+  },
+  "production_readiness": {
+    "known_deployments": "EverMemOS Cloud launched 2026-02-03. OpenClaw agent integration as primary use case. Memory Genesis 2026 hackathon attracted global developers (Jan-Mar 2026). No publicly disclosed enterprise production deployments with scale details. [uncertain]",
+    "critical_bugs": "1) Contradiction accumulation — new episodes can contradict earlier profile entries without explicit conflict resolution (profile may hold both claims). 2) Consolidation drift detection is an open issue (GitHub issue #133). 3) Cloud service is newly launched (Feb 2026) — production maturity still being established. [uncertain]",
+    "documentation_quality": "4 - Good. Comprehensive architecture documentation (ARCHITECTURE.md, OVERVIEW.md, API usage guide). DeepWiki provides detailed component-level analysis. arXiv paper (2601.02163) gives thorough theoretical grounding. Evaluation README with benchmark reproduction instructions. Active docs directory on GitHub. [uncertain]",
+    "community_activity": "Moderate. ~2500 GitHub stars. Active development with commits through March 2026. $80K hackathon competition driving developer engagement. Supported by OpenAI and AWS. Relatively new project compared to competitors. [uncertain]",
+    "api_stability": "Early stage. Cloud service launched Feb 2026. API likely still evolving. Open-source version actively developed. No documented versioning policy or breaking changes history. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes for open-source self-hosted: Apache 2.0 license allows full on-premise deployment with MongoDB + Elasticsearch + Milvus. Cloud service: data residency details not publicly documented. Custom deployment version offered for strategic partners.",
+    "compliance": "No publicly documented SOC2, HIPAA, GDPR, or 152-FZ certifications. TCCI/Shanda Group backing suggests enterprise-grade ambitions. Self-hosted deployment allows organizations to manage own compliance. Cloud service compliance status unknown. [uncertain]",
+    "vendor_risk": "MODERATE-HIGH. Mitigants: Apache 2.0 license, TCCI/Shanda Group backing, OpenAI/AWS partnerships, strong benchmark results (SOTA on LoCoMo + LongMemEval), active development. Risks: relatively new project (~1 year), small community compared to mem0 (~2.5K vs ~48K stars), no disclosed funding rounds, cloud service just launched (Feb 2026), team originates from Shanda Group investment incubation rather than standalone funded startup, contradiction handling still has known limitations.",
+    "migration_from_honcho": "Deriver: transfers well (native MemCell extraction). Dreaming: strong match (Semantic Consolidation with async ClusterManager/ProfileManager). Conclusions: partial — Foresight signals and implicit traits cover some ground but no typed reasoning taxonomy. Peer Card: strong match (persistent User Profile with Explicit/Implicit fields). Prefetch: strong match (Reconstructive Recollection assembles context). Dialectic: partial — multi-hop retrieval exists but no dedicated conversational query interface. Migration effort: MODERATE — strongest Honcho mechanism coverage among competitors (10/12), but data model differences (engram lifecycle vs Honcho's model) require adaptation. Triple-DB backend (MongoDB + Elasticsearch + Milvus) adds operational complexity."
+  },
+  "uncertain": [
+    "github_stars",
+    "contributors",
+    "funding",
+    "pricing_model",
+    "dialectic",
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "sharding_support",
+    "batch_api",
+    "max_users_production",
+    "concurrent_writes",
+    "storage_per_user",
+    "supported_providers",
+    "self_hosted_llm",
+    "structured_output_req",
+    "embedding_flexibility",
+    "known_deployments",
+    "critical_bugs",
+    "documentation_quality",
+    "community_activity",
+    "api_stability",
+    "compliance"
+  ]
+}

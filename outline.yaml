@@ -1,0 +1,92 @@
+topic: "AI Memory Platforms for Enterprise-Scale AI Companion"
+description: >
+  How to build an enterprise-scale alternative to Honcho (interpretive memory framework)
+  using license-compatible components (Apache 2.0/MIT) for 50M+ users.
+  Context: working prototype with Honcho (AGPL, 6 mechanisms). Need replacement.
+
+items:
+  # Tier 1 — Primary Candidates
+  - name: mem0
+    category: tier1
+    description: "Apache 2.0. Extraction + dedup + vector search. 48K+ stars. $24M raised (YC, Peak XV). Graph memory via Neo4j. OpenMemory MCP server."
+
+  - name: Graphiti
+    category: tier1
+    description: "Apache 2.0 temporal knowledge graph by Zep. Bi-temporal model. Neo4j/FalkorDB. Zero-LLM retrieval. 14K+ stars."
+
+  - name: Cognee
+    category: tier1
+    description: "Apache 2.0 graph + vector + reasoning. $7.5M seed (Pebblebed/ex-OpenAI). 70+ enterprise clients. Rust engine shipping Q1-Q2 2026."
+
+  - name: Letta
+    category: tier1
+    description: "Apache 2.0, formerly MemGPT. Agent runtime with memory blocks. V1 architecture. #1 on Terminal-Bench. Conversations API for shared memory."
+
+  - name: Hindsight
+    category: tier1
+    description: "MIT. 4 logical networks. 91.4% LongMemEval (best). Beliefs network closest to Honcho Conclusions. By Vectorize."
+
+  - name: Honcho
+    category: reference
+    description: "AGPL. 6/6 mechanisms. Blueprint. Interpretive memory: Deriver, Dreaming, Conclusions, Peer Card, Prefetch, Dialectic."
+
+  # Tier 1.5 — New SOTA (from web research supplement)
+  - name: EverMemOS
+    category: tier1
+    description: "93.05% LoCoMo (current SOTA). Self-organizing memory OS with engram lifecycle. +19.7% multi-hop reasoning. Cloud service. By EverMind."
+
+  - name: MemOS
+    category: tier1
+    description: "Memory OS with MemCube abstraction (provenance, versioning, migration). 159% improvement temporal reasoning vs OpenAI. Shanghai Jiao Tong / Renmin."
+
+  - name: A-MEM
+    category: tier1
+    description: "NeurIPS 2025. Zettelkasten-inspired agentic memory. Dynamic indexing + linking. Memory evolution. Beats SOTA on 6 models."
+
+  - name: Memori
+    category: tier1
+    description: "SQL-native memory layer (March 2026). Semantic triples. 81.95% LoCoMo with 1,294 tokens/query (5% of full context). 67% fewer tokens."
+
+  # Tier 2 — Niche/Emerging
+  - name: LangMem
+    category: tier2
+    description: "LangChain's memory for LangGraph agents. Namespace-based semantic search. Tightly coupled to LangChain."
+
+  - name: TeleMem
+    category: tier2
+    description: "mem0 fork by TeleAI. Better semantic clustering + dedup. Telecom-scale."
+
+  - name: SimpleMem
+    category: tier2
+    description: "Minimalist. 14x faster than mem0. Limited features, excellent for simple cases."
+
+  - name: Memobase
+    category: tier2
+    description: "MCP-native memory server. Cross-tool (Claude, Cursor, Qwen share one memory). PostgreSQL RLS. Open-source Jan 2025."
+
+  - name: Memoria
+    category: tier2
+    description: "Session summarization + weighted knowledge graph. 87.1% accuracy with <400 tokens prompt. Dec 2025."
+
+  # Managed
+  - name: Zep Cloud
+    category: managed
+    description: "Managed Graphiti + user mgmt. SOC2/HIPAA. $25/month+."
+
+  - name: Mem0 Platform
+    category: managed
+    description: "Managed mem0 with batch API, analytics, graph. $249/month Pro."
+
+  - name: Microsoft Foundry Memory
+    category: managed
+    description: "Managed long-term memory store. Auto extract/consolidate/retrieve. Free preview. First hyperscaler memory-as-a-service."
+
+  # DIY
+  - name: Custom pgvector
+    category: diy
+    description: "DIY: Postgres + pgvector + custom LLM extraction. Full control, no vendor dependency."
+
+execution:
+  batch_size: 4
+  items_per_agent: 1
+  output_dir: ./results

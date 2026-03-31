@@ -1,0 +1,87 @@
+{
+  "basic_info": {
+    "name": "Memori",
+    "license": "Apache 2.0",
+    "release_date": "2025-08 (initial public open-source release; originally GibsonAI, founded 2024)",
+    "last_commit": "2026-03-10",
+    "github_stars": 12400,
+    "contributors": "15-20 [uncertain]",
+    "company": "Memori Labs (formerly GibsonAI), New York, NY",
+    "funding": "$3.5M seed round (July 2024) from Oceans and 1P Ventures. [uncertain]",
+    "pricing_model": "Open-source (Apache 2.0) + Memori Cloud (hosted SaaS). Advanced Augmentation free for developers. Cloud tiers: Starter (lightweight/exploration), Growth (production apps), Enterprise (consistent production loads, multi-agent). Specific pricing amounts not publicly disclosed. BYODB and on-prem/VPC deployment options for enterprise."
+  },
+  "architecture": {
+    "storage_backend": "SQL-native from the ground up. Supports PostgreSQL, MySQL, SQLite, MongoDB, Oracle, Neon, Supabase, and any DB-API 2.0 driver. Database-agnostic architecture with specific adapters per backend. No vector DB required — uses in-memory semantic search over vectorized memories. Memori Cloud provides fully managed hosted option.",
+    "extraction_method": "LLM-based multi-agent architecture. Three agents work together: (1) conversation capture, (2) analysis/classification via Advanced Augmentation pipeline, (3) memory selection and injection. Converts unstructured dialogue into semantic triples and session summaries. Classifies memories into typed categories: facts, preferences, rules, skills, context. Augmentation runs in background (async, no user-facing latency).",
+    "dedup_strategy": "Entity-level deduplication through semantic triple extraction. When new triples are extracted, they are compared against existing structured memory. Contradictions resolved through temporal precedence — newer information supersedes older. SQL-native storage enables exact-match deduplication on structured fields. [uncertain]",
+    "temporal_support": "Metadata timestamps on memories with importance-based retention tiers: short-term (recent activities, ~7 day expiry), long-term (important preferences, skills), permanent (critical rules, core facts). Session summaries preserve timeline/narrative context. No bi-temporal model documented.",
+    "retrieval_method": "Hybrid: vectorized memories with in-memory semantic search for precise context retrieval, combined with SQL-native structured queries. Supports search by category (fact, preference, skill, rule, context), keyword, and semantic similarity. Memory Search Engine supports natural language queries. No external vector DB dependency.",
+    "data_model": "Semantic triples (subject-predicate-object) as core representation, plus session summaries for narrative context. Memories typed into categories: fact, preference, skill, context, rule. Each memory has importance scoring determining retention tier. Relationships between facts and entities tracked. Short-term conscious context separated from long-term accumulated knowledge."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native. Advanced Augmentation pipeline extracts structured semantic triples and categorized memories from conversation messages. Multi-agent extraction with classification into facts, preferences, rules, skills.",
+    "dreaming": "0 - No documented offline analysis, pattern synthesis, or background re-processing of accumulated memories. Augmentation is per-conversation, not batch retrospective analysis across sessions.",
+    "conclusions": "1 - Partial. Memory categories include typed classifications (fact, preference, rule, skill, context) with importance scoring, but no explicit deductive/inductive/abductive reasoning over accumulated data. Session summaries provide some synthesis.",
+    "peer_card": "1 - Partial. Search results mention 'peer card retrieval' providing fast access to curated key facts about the user, and identity-related information is separated from general knowledge. However, no guaranteed structured profile schema with core identity fields documented. [uncertain]",
+    "prefetch": "2 - Native. Memory injection into LLM prompts is core functionality. SDK wraps LLM clients to intercept requests and inject relevant memories automatically. Short-term context injected directly into prompts, long-term memory selected via search engine.",
+    "dialectic": "1 - Partial. Search results mention 'Dialectic Q&A powered by LLM that synthesizes answers from accumulated conversation history.' However, limited documentation on this feature's depth and availability. [uncertain]",
+    "total_coverage": 7
+  },
+  "performance": {
+    "extraction_latency": "Augmentation runs in background (async) — no user-facing latency for extraction. Actual background processing time not publicly disclosed. [uncertain]",
+    "retrieval_latency_p95": "Not publicly disclosed. SQL-native queries with in-memory semantic search suggest low latency, but no p95 benchmarks published. [uncertain]",
+    "benchmark_locomo": "81.95% accuracy (LLM-as-Judge). Outperforms Zep (79.09%), LangMem (78.05%), and Mem0 (62.47%). Uses only 1,294 tokens per query (4.98% of full context footprint).",
+    "benchmark_longmemeval": "Not publicly evaluated. No Memori scores on LongMemEval available. [uncertain]",
+    "tokens_per_extraction": "1,294 tokens average per query at retrieval time. 67% fewer tokens than Zep (3,911 tokens). Extraction-side token consumption not disclosed separately. [uncertain]",
+    "cost_per_1k_messages": "Claims up to 98% lower inference costs vs full-context approaches. 67% fewer tokens per query than nearest competitor (Zep). Exact dollar cost per 1K messages not published. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "Delegated to underlying database. PostgreSQL and MySQL backends support native sharding. User isolation via user_id on all operations. SQL-native design enables standard database scaling patterns. [uncertain]",
+    "batch_api": "Not explicitly documented. SQL-native design suggests standard batch SQL operations are possible. Memori Cloud may offer batch APIs. [uncertain]",
+    "max_users_production": "Not publicly disclosed. Positioned for enterprise production workloads. Memori Cloud launched March 2026. [uncertain]",
+    "concurrent_writes": "Handled via underlying SQL database ACID transactions. SQL-native design provides standard concurrent write handling with transactional integrity. [uncertain]",
+    "storage_per_user": "SQL-native storage — significantly more compact than vector-only approaches. Semantic triples are structured data, not high-dimensional vectors. Exact per-user estimates not published. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI, Anthropic, Google Gemini, Grok, Amazon Bedrock, Azure OpenAI, Ollama (local), and 100+ providers via LiteLLM integration. Any OpenAI-compatible endpoint supported. LLM-agnostic by design.",
+    "self_hosted_llm": "Yes. Supports Ollama for local model hosting. Any OpenAI-compatible endpoint works, covering vLLM, LM Studio, and other self-hosted solutions.",
+    "structured_output_req": "Uses LLM for semantic triple extraction and memory classification. Likely requires structured output capability for the extraction pipeline. [uncertain]",
+    "embedding_flexibility": "Uses in-memory semantic search over vectorized memories. Embedding model details not prominently documented — likely supports multiple embedding providers given LLM-agnostic design. [uncertain]"
+  },
+  "production_readiness": {
+    "known_deployments": "Early stage — Memori Cloud launched March 2026. Positioned for customer support agents, commerce automation, internal copilots, multi-session AI workflows. OpenClaw plugin integration for multi-agent gateways. No specific named enterprise customers publicly disclosed. [uncertain]",
+    "critical_bugs": "Relatively young project (v3.2.3 as of March 2026). Open issues on GitHub but no widely reported critical production bugs in search results. v3.2.3 was a Gemini wrapper bug fix. [uncertain]",
+    "documentation_quality": "3.5 - Comprehensive docs site at memorilabs.ai/docs covering architecture, features, databases, LLM integration, quickstarts. Cookbook repository available. ArXiv paper (2603.19935) provides detailed technical architecture. Some features like peer card and dialectic Q&A have limited documentation.",
+    "community_activity": "Growing. 12.4K GitHub stars. Active discussions and PRs. Regular releases (v3.x series). Cookbook repository maintained. Still building community vs established players like Mem0 (48K stars).",
+    "api_stability": "Evolving. Major version jump to v3 with new adapter/driver architecture. v3 was private beta before general release. API likely to continue evolving as product matures. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes. Multiple options: fully self-hosted (Apache 2.0 OSS), BYODB (bring your own database), VPC deployment, and on-prem configurations. Full infrastructure control available.",
+    "compliance": "PCI and SOC 2 compliant per website claims. GDPR compliance not explicitly documented. Self-hosted deployment enables organizations to manage own compliance. 152-FZ: possible via self-hosted only. [uncertain]",
+    "vendor_risk": "MODERATE-HIGH. Mitigants: Apache 2.0 license, SQL-native (no proprietary storage lock-in), 12.4K stars, $3.5M funding. Risks: young project (public since Aug 2025), small team (formerly GibsonAI), rapid evolution (v3 major rewrite), cloud product just launched (March 2026), limited track record at scale.",
+    "migration_from_honcho": "Deriver mechanism transfers well (native Advanced Augmentation). Prefetch well-covered (native memory injection). Peer Card partially covered (peer card retrieval mentioned but not fully structured). Dialectic partially covered (Q&A synthesis mentioned). Dreaming would need rebuilding (no offline batch analysis). Conclusions partially covered via typed categories but no reasoning types. Data model difference: Honcho uses typed conclusions; Memori uses semantic triples + typed categories. Migration effort: MODERATE — better Honcho coverage than most competitors (7/12), but Dreaming requires custom implementation."
+  },
+  "uncertain": [
+    "contributors",
+    "funding",
+    "dedup_strategy",
+    "peer_card",
+    "dialectic",
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "sharding_support",
+    "batch_api",
+    "max_users_production",
+    "concurrent_writes",
+    "storage_per_user",
+    "structured_output_req",
+    "embedding_flexibility",
+    "known_deployments",
+    "critical_bugs",
+    "api_stability",
+    "compliance"
+  ]
+}

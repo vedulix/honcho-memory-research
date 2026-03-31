@@ -1,0 +1,86 @@
+{
+  "basic_info": {
+    "name": "SimpleMem",
+    "license": "MIT",
+    "release_date": "2025-01 (arXiv paper 2601.02553, January 2025)",
+    "last_commit": "2026-03 [uncertain]",
+    "github_stars": "~3200 [uncertain]",
+    "contributors": "5-10 (academic research lab project) [uncertain]",
+    "company": "AIMING Lab, University of North Carolina at Chapel Hill (led by Prof. Huaxiu Yao). Academic research project, not a commercial company.",
+    "funding": "No known commercial funding. Academic research lab (UNC Chapel Hill). No VC rounds disclosed.",
+    "pricing_model": "Free/OSS (MIT license). Cloud MCP service available at mcp.simplemem.cloud. No known paid tiers."
+  },
+  "architecture": {
+    "storage_backend": "LanceDB (primary and only supported backend). Columnar vector storage with hybrid search across dense vectors, sparse lexical features, and structured metadata. SQL-like filtering. Local file-based storage (configured via LANCEDB_PATH). No support for external vector DBs like Qdrant, Pinecone, etc.",
+    "extraction_method": "LLM-based, three-stage pipeline: (1) Semantic Structured Compression — entropy-aware filtering via LLM qualitative assessment (semantic density gating) to discard low-utility dialogue, then converts informative windows into compact, context-independent memory units with resolved coreferences and absolute timestamps. (2) Online Semantic Synthesis — consolidates related fragments during writing into higher-level abstract representations. (3) Intent-Aware Retrieval Planning — infers search intent to adapt retrieval scope. Joint generation task for extraction, coreference resolution, and temporal anchoring. Fewer LLM calls than Mem0 — memory construction is 14x faster (92.6s vs 1350.9s per sample).",
+    "dedup_strategy": "Online Semantic Synthesis: during write time, related memory fragments are consolidated into unified abstract representations, eliminating redundancy. Retrieval uses ID-based deduplication across parallel multi-view retrieval results (semantic, lexical, symbolic indexes). No explicit LLM judge for dedup — consolidation happens proactively during ingestion.",
+    "temporal_support": "Absolute timestamp anchoring. Relative temporal expressions in dialogue are resolved into absolute timestamps at memory construction time, ensuring consistent temporal grounding across long interaction gaps. This is a core strength — SimpleMem achieves 58.62 F1 on Temporal Reasoning vs 48.91 for Mem0. No bi-temporal model.",
+    "retrieval_method": "Intent-Aware Retrieval Planning: LLM infers search intent to dynamically determine retrieval scope and query forms. Parallel multi-view retrieval across three complementary indexes: (1) dense semantic vectors, (2) sparse lexical features (BM25-like), (3) symbolic/structured metadata. Results merged through ID-based deduplication. Token-efficient context construction.",
+    "data_model": "Compact memory units — self-contained atomic facts with resolved coreferences and absolute timestamps. Each unit is indexed through three complementary representations (semantic, lexical, symbolic) for flexible retrieval. Not entity-relation triples or typed conclusions — flat structured facts with rich indexing. Multi-view indexed memory units stored in LanceDB."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native fact extraction via Semantic Structured Compression. Core functionality: converts raw dialogue into compact, context-independent memory units with coreference resolution and temporal anchoring.",
+    "dreaming": "1 - Partial. Online Semantic Synthesis consolidates related memory fragments into higher-level abstract representations during write time. However, this is synchronous (not offline batch analysis), and does not include pattern synthesis or preference shift detection across accumulated memories.",
+    "conclusions": "0 - No typed reasoning (deductive, inductive, abductive) over user data. Memories are stored as compressed atomic facts, not derived conclusions with reasoning types.",
+    "peer_card": "0 - No structured user profile with guaranteed core identity fields. User data exists as indexed memory units without a consolidated profile schema.",
+    "prefetch": "1 - Partial. Intent-Aware Retrieval Planning assembles relevant context before LLM response, with token-efficient construction (531 tokens per query vs 973 for Mem0). However, no structured card + facts + summary assembly pattern — developer must integrate retrieval results into prompt.",
+    "dialectic": "0 - No built-in conversational interface to query user memory. Search returns memory units, not conversational synthesis.",
+    "total_coverage": 4
+  },
+  "performance": {
+    "extraction_latency": "Memory construction: 92.6 seconds per sample (full conversation processing). This is 14x faster than Mem0 (1350.9s) and 50x faster than A-Mem (5140.5s). Per-message latency not separately reported. [uncertain]",
+    "retrieval_latency_p95": "Sub-second retrieval times claimed. 531 tokens per query retrieval budget. Specific p95 latency in milliseconds not published. [uncertain]",
+    "benchmark_locomo": "43.24 Average F1 (GPT-4.1-mini). 26.4% improvement over Mem0 (34.20 F1). 39.06 F1 on GPT-4o (vs 36.09 for Mem0). Temporal Reasoning: 58.62 F1 (vs 48.91 Mem0). SingleHop QA: 51.12 F1. Uses only 531 tokens per query vs 973 for Mem0 and 16,910 for full-context.",
+    "benchmark_longmemeval": "Best overall performance claimed on LongMemEval-S with balanced capabilities across sub-tasks. Evaluated with LLM-as-a-judge protocol (gpt-4.1-mini). Specific numeric scores not found in public sources. [uncertain]",
+    "tokens_per_extraction": "531 tokens per retrieval query (30x reduction vs full-context 16,910 tokens). Extraction token consumption not separately reported. [uncertain]",
+    "cost_per_1k_messages": "Significantly lower than Mem0 due to 30x token reduction and fewer LLM calls. Default embedding model (Qwen3-Embedding-0.6B) runs locally without API costs. LLM costs depend on chosen provider. Estimated $1-4 per 1K messages with GPT-4.1-mini. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "No native sharding support. LanceDB is file-based local storage. Scaling to millions of memory units claimed within single instance. No documented horizontal sharding by user_id. [uncertain]",
+    "batch_api": "Batch processing supported for memory construction from full conversation transcripts. No documented REST API with batch endpoints. [uncertain]",
+    "max_users_production": "Academic research project. No known large-scale production deployments. Cloud MCP service (mcp.simplemem.cloud) available but scale not disclosed. [uncertain]",
+    "concurrent_writes": "Not documented. LanceDB supports concurrent reads but write concurrency details depend on LanceDB configuration. No application-level concurrency handling documented. [uncertain]",
+    "storage_per_user": "LanceDB columnar format with 1024-dimensional vectors (Qwen3-Embedding-0.6B default). Compact due to semantic compression — fewer memory units than Mem0 for same conversations. Estimated 2-8MB per user at 1000 memories (3 indexes per unit). [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI and any OpenAI-compatible API via OPENAI_BASE_URL configuration. Specifically mentioned: OpenAI (GPT-4.1-mini, GPT-4o), Qwen models, Azure OpenAI. Limited to OpenAI-compatible API format.",
+    "self_hosted_llm": "Possible via OpenAI-compatible API endpoints (e.g., vLLM, LM Studio with OpenAI API format). Not natively integrated with Ollama. Default embedding (Qwen3-Embedding-0.6B) runs locally. Paper demonstrates robust performance even on 1.5B/3B parameter models. [uncertain]",
+    "structured_output_req": "LLM-based extraction uses structured prompts for semantic density gating and memory unit generation. Likely requires instruction-following capability but not necessarily formal function calling/tool use. [uncertain]",
+    "embedding_flexibility": "Default: Qwen3-Embedding-0.6B (1024-dimensional, runs locally). LanceDB supports custom embedding functions. Flexibility to use other embedding models not extensively documented. [uncertain]"
+  },
+  "production_readiness": {
+    "known_deployments": "No known large-scale production deployments. Primarily an academic research project from AIMING Lab (UNC Chapel Hill). Cloud MCP service available (mcp.simplemem.cloud) for integration with Claude Desktop, Cursor, and MCP-compatible clients. Multiple community forks on GitHub suggest developer interest.",
+    "critical_bugs": "No critical bugs publicly documented in issue tracker (academic project with limited production usage). Main limitation: narrow storage backend (LanceDB only), limited LLM provider support (OpenAI-compatible only). [uncertain]",
+    "documentation_quality": "3 - README with quickstart, config examples, and architecture overview. Academic paper provides detailed technical documentation. Multi-language README translations (Portuguese, Chinese, etc.). DeepWiki auto-generated docs available. However, no comprehensive API reference or production deployment guides.",
+    "community_activity": "Moderate. ~3.2K GitHub stars. Multiple community forks. Academic paper well-received on HuggingFace and arXiv. No Discord/Slack community documented. Issue tracker activity appears low compared to commercial projects. [uncertain]",
+    "api_stability": "Early-stage. Python library API, no formal versioning policy documented. MCP server interface provides some stability through protocol standardization. API may change as project evolves from research to production use. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes — fully self-hostable. LanceDB is file-based local storage, all data stays on local filesystem. Cloud MCP service (mcp.simplemem.cloud) stores data remotely. Local embedding model (Qwen3-Embedding-0.6B) eliminates need for external embedding API calls.",
+    "compliance": "No compliance certifications (academic project). Self-hosted deployment allows organizations to manage their own compliance. No GDPR, SOC2, HIPAA, or 152-FZ documentation. [uncertain]",
+    "vendor_risk": "LOW-MODERATE. Mitigants: MIT license, simple codebase, academic origin (no license change risk from VC pressure), LanceDB is also open-source. Risks: academic project may lose maintenance if researchers move on, small contributor base, no commercial support, limited production hardening.",
+    "migration_from_honcho": "Deriver mechanism transfers well (native semantic compression). Dreaming partially covered by Online Semantic Synthesis but lacks offline batch analysis. Conclusions, Peer Card, Dialectic Chat would need complete rebuilding. Prefetch partially covered but requires custom assembly. Data model difference: Honcho uses typed conclusions and peer cards; SimpleMem uses flat compressed memory units with multi-view indexing. Migration effort: HIGH for full Honcho parity, LOW-MODERATE for basic memory extraction with better efficiency."
+  },
+  "uncertain": [
+    "last_commit",
+    "github_stars",
+    "contributors",
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "sharding_support",
+    "batch_api",
+    "max_users_production",
+    "concurrent_writes",
+    "storage_per_user",
+    "self_hosted_llm",
+    "structured_output_req",
+    "embedding_flexibility",
+    "critical_bugs",
+    "community_activity",
+    "api_stability",
+    "compliance"
+  ]
+}

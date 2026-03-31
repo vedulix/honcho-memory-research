@@ -1,0 +1,83 @@
+{
+  "basic_info": {
+    "name": "Memobase",
+    "license": "Apache 2.0",
+    "release_date": "2025-01 (initial open-source release, first GitHub activity)",
+    "last_commit": "2026-01-11",
+    "github_stars": 2637,
+    "contributors": "16",
+    "company": "memodb-io (small startup team). Invested by Beyond1435 and Plug and Play Tech Center. [uncertain]",
+    "funding": "Early-stage. PitchBook lists Beyond1435 and Plug and Play Tech Center as investors. No publicly disclosed funding amounts. [uncertain]",
+    "pricing_model": "Open-source self-hosted (free) + Memobase Cloud (pay-as-you-go). Cloud offers free testing tier and production-scale token-based pricing. Specific tier details not publicly documented in detail. [uncertain]"
+  },
+  "architecture": {
+    "storage_backend": "PostgreSQL (primary, for structured profile storage and efficient querying) + Redis (caching and buffer management). Does NOT use vector DB as primary store — uses SQL-based retrieval over structured profiles rather than embedding-based search. Optional embedding support (OpenAI, Jina) for context-aware profile search feature.",
+    "extraction_method": "LLM-based with buffer system. Conversations are buffered per-user; when buffer exceeds threshold (e.g., 1024 tokens) or idles (e.g., 1 hour), the entire buffer is flushed and processed by LLM in batch. LLM extracts structured profile fields organized into configurable topics/sub-topics (e.g., 'basic_info/name', 'interests/movies'). Also extracts event timeline entries. Significantly fewer LLM calls than per-message systems due to batching. Uses configurable config.yaml with slot descriptions to guide extraction.",
+    "dedup_strategy": "Profile-based merging. Since memories are stored as structured profile slots (topic/sub-topic), new extractions are merged into existing profile fields rather than creating duplicate flat facts. LLM validates new profile information before saving, ensuring schema adherence and meaningful data. Contradiction handling is implicit through profile slot overwriting — latest extraction updates the slot value. [uncertain]",
+    "temporal_support": "Event Memory system tracks timestamped events from user's life, essential for time-related questions. Profile Memory captures current state of user knowledge. Event timeline maintained separately from profile. This dual approach (profile + events) enables strong temporal reasoning — 85% on LOCOMO temporal questions. No explicit bi-temporal model, but event timestamps provide temporal querying capability.",
+    "retrieval_method": "Hybrid: SQL-based retrieval over structured profiles (primary, <100ms latency) + LLM-powered context-aware profile search for feature-based analysis rather than simple keyword/semantic matching. Event memory retrieved via timeline queries. Does not rely on vector similarity as primary retrieval — uses PostgreSQL queries over structured data. Optional embedding-based search available.",
+    "data_model": "Structured user profiles organized into configurable topics and sub-topics (e.g., 'basic_info/name', 'preferences/food', 'interests/movies'). Each user has: (1) Profile Memory — structured slots representing who the user is; (2) Event Memory — timestamped events tracking what happened in user's life. Planned: Schedule Memory (calendar), Social Memory (relationships). Profile schema is developer-configurable via config.yaml with slot descriptions and max token sizes."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native fact extraction from conversations via LLM-based buffer processing. Core functionality — extracts structured profile fields and events from conversation messages.",
+    "dreaming": "1 - Partial. Buffer-based batch processing is a form of offline/deferred analysis (not real-time per-message). However, no explicit pattern synthesis, preference shift detection, or contradiction resolution across accumulated data. Batch flush is triggered by threshold, not by analytical goals.",
+    "conclusions": "0 - No typed reasoning (deductive, inductive, abductive) over user data. Extractions are structured profile fields, not derived conclusions with reasoning types.",
+    "peer_card": "2 - Native. Core differentiator — Memobase is built around structured user profiles with configurable topics/sub-topics. Every user has a guaranteed profile with developer-defined schema. Closest equivalent to Honcho Peer Card among all competitors.",
+    "prefetch": "2 - Native context assembly. Profile + event memory are retrieved before each LLM response with <100ms latency via SQL queries. Developer gets structured profile data ready for injection into LLM context.",
+    "dialectic": "0 - No built-in conversational query interface over user memory. API returns structured profile data and events, not conversational synthesis.",
+    "total_coverage": 7
+  },
+  "performance": {
+    "extraction_latency": "Extraction is deferred (buffer-based), not per-message. Buffer flush triggers batch LLM processing — latency depends on buffer size and LLM provider. Online retrieval latency: <100ms (SQL queries over profiles, no embedding computation needed). [uncertain]",
+    "retrieval_latency_p95": "<100ms (claimed). Uses PostgreSQL SQL queries over structured profiles rather than vector search, avoiding embedding computation overhead.",
+    "benchmark_locomo": "75.78% overall (LLM-as-Judge). By category: Single-hop 70.92%, Multi-hop 46.88%, Open-domain 77.17%, Temporal 85.05%. Temporal reasoning is strongest category. BLEU overall: 0.3978, F1 overall: 0.5145. Tested with Memobase v0.0.37.",
+    "benchmark_longmemeval": "Not published. [uncertain]",
+    "tokens_per_extraction": "Significantly reduced vs per-message systems due to buffer batching. One chatbot case study reported 75% LLM cost reduction by switching from 32K to 8K context window. Exact tokens per extraction not published. [uncertain]",
+    "cost_per_1k_messages": "Claimed ~5x more cost-effective than competitors (Mem0, Zep) due to buffer batching that amortizes LLM calls. Exact dollar cost not published. With GPT-4o-mini and batching, estimated significantly lower than Mem0's $2-8/1K messages. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "PostgreSQL-based — supports standard PostgreSQL horizontal scaling approaches. User isolation via user_id in all operations. No documented native sharding beyond what PostgreSQL provides. [uncertain]",
+    "batch_api": "Native buffer-based batch processing is core architecture. Conversations are buffered and processed in batch rather than individually. SDKs available in Python, Node.js, Go for bulk operations.",
+    "max_users_production": "Not publicly disclosed. Project is relatively young (launched 2025). Looking for early adopters as design partners. [uncertain]",
+    "concurrent_writes": "FastAPI async server with Redis caching. Buffer system naturally handles concurrent writes by accumulating per-user buffers independently. PostgreSQL handles concurrent database writes. [uncertain]",
+    "storage_per_user": "Structured profile data in PostgreSQL — significantly more compact than vector embeddings. Profile size controlled by configurable number of slots and max token size per slot. Estimated much smaller than vector-based systems at 1000 memories. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI (default), any OpenAI-compatible API (vLLM, Ollama, etc.) via configurable llm_base_url. Also supports 'doubao_cache' provider style. Default model: gpt-4o-mini. Separate summary_llm_model configurable.",
+    "self_hosted_llm": "Yes. Supports any OpenAI-compatible API endpoint, including Ollama and vLLM via llm_base_url configuration. Full self-hosted deployment with Docker (FastAPI + PostgreSQL + Redis).",
+    "structured_output_req": "Yes. LLM must produce structured output for profile extraction — organized into topic/sub-topic slots matching the configured schema. [uncertain]",
+    "embedding_flexibility": "Supports OpenAI embeddings (default), Jina Embedding, and Ollama Embedding. Embedding is optional — primary retrieval uses SQL over structured profiles, not vector search."
+  },
+  "production_readiness": {
+    "known_deployments": "No publicly documented large-scale production deployments. Project is in early-adopter phase, actively seeking design partners. MCP server available with 9.2K downloads. [uncertain]",
+    "critical_bugs": "No widely reported critical bugs found in public issue tracker. Project is relatively young with smaller community. Last commit January 2026 — potential concern about development pace. [uncertain]",
+    "documentation_quality": "3 - Documentation at docs.memobase.io covers introduction, features, self-hosted config, API reference, templates (Ollama, OpenAI). Includes benchmark results. Blog posts explain concepts well. However, documentation is still growing — some areas (event memory details, advanced config) appear sparse.",
+    "community_activity": "Moderate. 2,637 GitHub stars, 16 contributors. Active Twitter/X presence (@memobase_io). MCP server has 9.2K downloads. Smaller community compared to Mem0 (48K stars) or Letta. Development activity appears to have slowed (last commit Jan 2026).",
+    "api_stability": "Early stage — API still evolving. v0.0.37 used for benchmarks suggests pre-1.0 maturity. SDKs available in Python, Node.js, Go. No formal versioning policy documented. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes for self-hosted. Full Docker deployment (FastAPI + PostgreSQL + Redis) — all data stays on-premise. Cloud version available but data residency details not documented.",
+    "compliance": "No documented SOC2, HIPAA, GDPR, or 152-FZ compliance. Self-hosted deployment allows organizations to manage their own compliance. [uncertain]",
+    "vendor_risk": "MODERATE-HIGH. Mitigants: Apache 2.0 license, PostgreSQL-based (standard stack), simple architecture (FastAPI + Postgres + Redis). Risks: small team (~16 contributors), early-stage funding, development pace appears to have slowed (last commit Jan 2026), pre-1.0 maturity, small community relative to competitors. No clear sustainability path documented.",
+    "migration_from_honcho": "Peer Card mechanism transfers very well — Memobase's structured profile system is the closest match to Honcho Peer Card among competitors. Deriver transfers well (native extraction). Prefetch transfers well (native context assembly). Dreaming/Conclusions/Dialectic would need rebuilding. Data model difference: Memobase uses topic/sub-topic structured profiles vs Honcho's typed conclusions. Migration effort: MODERATE — strong alignment on profile/card concept, but missing higher-order reasoning mechanisms."
+  },
+  "uncertain": [
+    "company",
+    "funding",
+    "pricing_model",
+    "dedup_strategy",
+    "extraction_latency",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "sharding_support",
+    "max_users_production",
+    "concurrent_writes",
+    "storage_per_user",
+    "structured_output_req",
+    "known_deployments",
+    "critical_bugs",
+    "api_stability",
+    "compliance"
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "basic_info": {
+    "name": "Honcho",
+    "license": "AGPL-3.0",
+    "release_date": "2024-02 (initial public launch as 'Honcho: User Context Management for LLM Apps')",
+    "last_commit": "2026-03-12",
+    "github_stars": 414,
+    "contributors": 11,
+    "company": "Plastic Labs",
+    "funding": "$5.4M pre-seed led by Variant, White Star Capital, and Betaworks, with participation from Mozilla Ventures, Seed Club Ventures, Greycroft, Differential Ventures, and angels (Scott Moore, NiMA Asghari, Thomas Howell).",
+    "pricing_model": "Open-source (AGPL-3.0) self-hosted + managed SaaS. Managed service: $2 per million tokens ingested. get_context() unlimited and free. Dialectic .chat() queries from $0.001 per query with reasoning levels. Dreaming tasks currently free. $100 free credits on signup. Ingestion only charged when message is actually processed (messages by peers or in sessions with reasoning disabled are free)."
+  },
+  "architecture": {
+    "storage_backend": "PostgreSQL with pgvector extension. Single relational+vector hybrid backend. All data (messages, conclusions, peer cards, session metadata) stored in PostgreSQL. Vector embeddings for similarity search via pgvector. Self-hosted via Docker Compose or Fly.io deployment.",
+    "extraction_method": "LLM-based via custom reasoning model 'Neuromancer XR'. Two-layer pipeline: (1) Deriver handles exhaustive explicit information capture from each message, extracting premises and explicit facts. (2) Neuromancer XR reasons over extracted data to derive deductive conclusions, forming a reasoning tree per peer. In Honcho 3, the Deriver was trimmed to handle only explicit capture, enabling limitless ingestion scaling. Background processing is asynchronous.",
+    "dedup_strategy": "Managed through the Dreaming system. Dreams prune excess information, consolidate duplicated information, and create further reasoning. Contradiction resolution happens during dreaming tasks as background processing. Conclusions form a reasoning tree structure that naturally supersedes prior conclusions. [uncertain]",
+    "temporal_support": "Metadata timestamps on messages and conclusions. Conclusions form a temporal reasoning tree — new conclusions can supersede older ones. Peer cards periodically regenerated via Dreaming system reflecting latest state. No explicit bi-temporal model, but the reasoning tree structure implicitly tracks evolution of understanding over time.",
+    "retrieval_method": "Hybrid: agentic retrieval via Dialectic Agent (the single most important architectural change in Honcho 3 for SOTA benchmark results). Combines vector similarity search (pgvector) with LLM-powered reasoning. session.context() returns formatted conversation history + representations. peer.chat(query) provides natural language query with reasoning levels. Hybrid search strategy with advanced filters at Workspace, Session, or Peer level.",
+    "data_model": "Entity-centric hierarchical model. Top-level: Workspaces (multi-tenant isolation). Peers (both users and agents as first-class entities). Sessions (conversations with multiple peers). Messages (fundamental interaction units). Conclusions (typed: explicit, deductive, inductive, abductive — forming reasoning trees per peer). Peer Cards (structured identity summaries). Representations (sum total of all derived insights about a peer). The model supports multi-party sessions with mixed human and AI agents and configurable observation settings."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native. The Deriver is a core named component of Honcho, responsible for exhaustive explicit information capture from every message. In Honcho 3, trimmed to focus on explicit capture while Neuromancer XR handles deeper reasoning.",
+    "dreaming": "2 - Native. Dreaming is a core named component. Background tasks managed by agents that prune excess information, consolidate duplicates, create deductions and further reasoning, generate peer cards, and notice patterns across interactions to form hypotheses to test against new data. Inspired by the hypothesis that human dreams serve the same purpose.",
+    "conclusions": "2 - Native. Typed conclusions are a core data primitive. Neuromancer XR derives explicit and deductive conclusions from conversational data. Conclusions form reasoning trees per peer with deductive, inductive, and abductive reasoning types. The context endpoint returns conclusions alongside messages and summaries.",
+    "peer_card": "2 - Native. Peer Cards are a core named concept — structured summaries containing name, nicknames, location, age, occupation, interests/hobbies, likes/dislikes. Used to improve fidelity of the Deriver and Dialectic API. In Honcho 3, moved to Dreaming system for intermittent regeneration rather than constant inline updates.",
+    "prefetch": "2 - Native. session.context() returns a combination of messages, conclusions, and summaries up to a provided token limit, enabling indefinite sessions. Structured context assembly combining peer card + relevant facts + summary is built into the API.",
+    "dialectic": "2 - Native. The Dialectic API is the flagship endpoint. peer.chat(query) allows natural language queries against a peer's representation — 'tell me what you know about this user'. Returns reasoned, synthesized answers from accumulated conversation history. Supports configurable reasoning levels (how much effort a query should take). Can be used for generic/specific insights, prompt hydration, second opinions, and personalized responses.",
+    "total_coverage": 12
+  },
+  "performance": {
+    "extraction_latency": "Not publicly documented as p50/p95 values. Deriver processes messages asynchronously in background, so extraction does not block the user-facing response path. [uncertain]",
+    "retrieval_latency_p95": "Not publicly documented as specific latency numbers. Dialectic .chat() has configurable reasoning levels that trade latency for depth. get_context() (prefetch) is described as lightweight. [uncertain]",
+    "benchmark_locomo": "89.9% accuracy (LoCoMo full benchmark). Up from previous score of 86.9%. Honcho answers about 100 more questions correctly than Haiku alone (83.9%). State-of-the-art as of March 2026.",
+    "benchmark_longmemeval": "90.4% on LongMem S (with Claude). 92.6% on LongMem S with Gemini 3 Pro. State-of-the-art. Also benchmarked on BEAM: 0.630 on BEAM 100K. Repository: plastic-labs/honcho-benchmarks.",
+    "tokens_per_extraction": "Not publicly documented. Honcho charges $2 per million tokens ingested, suggesting efficient processing. Deriver handles only explicit capture; Neuromancer XR handles reasoning. [uncertain]",
+    "cost_per_1k_messages": "At $2/million tokens ingested: assuming ~500 tokens per message average, 1K messages = ~500K tokens = ~$1.00. Dialectic queries add $0.001+ per query. Dreaming is currently free. Significantly cheaper than alternatives — described as 2.5-25x less expensive than other solutions. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "Workspace-level isolation provides logical multi-tenancy. PostgreSQL-based, so horizontal scaling depends on PostgreSQL sharding strategies (Citus, read replicas). No documented native application-level sharding beyond workspace isolation. [uncertain]",
+    "batch_api": "Search endpoints available at Workspace, Session, or Peer level with advanced filters. Bulk operations not explicitly documented. [uncertain]",
+    "max_users_production": "Not publicly disclosed. Managed service available at app.honcho.dev. Used by NousResearch Hermes Agent as memory backend. Integrations with multiple agent frameworks. [uncertain]",
+    "concurrent_writes": "Asynchronous background processing (Deriver and Dreaming run as background tasks). PostgreSQL handles concurrent writes with standard MVCC. Multi-party sessions support concurrent peers. [uncertain]",
+    "storage_per_user": "PostgreSQL with pgvector. Storage includes messages, conclusions (reasoning trees), peer cards, and embeddings. Estimated similar to other PostgreSQL-based solutions at ~2-10MB per user at 1000 memories depending on conclusion depth. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "Anthropic Claude, OpenAI, Google Gemini, Groq. Custom Neuromancer XR model for reasoning/derivation. Multi-provider support with configurable LLM providers for different use cases via environment variables.",
+    "self_hosted_llm": "Yes, AGPL-3.0 allows full self-hosting. Docker Compose setup for local development. Fly.io deployment for production. Requires PostgreSQL with pgvector. LLM provider configurable, though Neuromancer XR (proprietary reasoning model) is used in managed service. [uncertain]",
+    "structured_output_req": "Neuromancer XR is a specialized model trained for structured conclusion extraction. For self-hosted, LLM must support the extraction pipeline's requirements. Exact structured output requirements not publicly documented. [uncertain]",
+    "embedding_flexibility": "Uses pgvector for vector storage. Embedding model configurable. Specific supported embedding providers not extensively documented beyond what's in the managed service. [uncertain]"
+  },
+  "production_readiness": {
+    "known_deployments": "NousResearch Hermes Agent (native Honcho memory integration). Managed service at app.honcho.dev. Multiple agent framework integrations (LangGraph, Claude Code skills). Agent skills ecosystem (playbooks.com, agentskills.so, termo.ai). nanobot-honcho reference implementation by Plastic Labs.",
+    "critical_bugs": "No critical open bugs found in public issue tracker. Repository has relatively few open issues. Active development with recent commits in March 2026. [uncertain]",
+    "documentation_quality": "4 - Good documentation at docs.honcho.dev with v2 and v3 versions. Architecture & Intuition page, core concepts glossary, SDK reference, integration guides (LangGraph). Blog posts explain design philosophy in depth. Benchmarking methodology published. Changelog maintained. Some gaps in self-hosting and advanced configuration docs.",
+    "community_activity": "Smaller but focused community. 414 GitHub stars, 11 contributors. Active blog with research publications. Integration ecosystem growing (NousResearch, agent skills platforms). Regular releases. Discord community. [uncertain]",
+    "api_stability": "Honcho 3.0.0 was a major release (January 2026) with significant architectural changes. SDK versioned (honcho-ai 2.0.1 on PyPI as of Feb 2026). API generated via Stainless (honcho-stainless-config). v2 and v3 docs maintained separately, suggesting breaking changes between versions. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes for self-hosted (AGPL-3.0). Full control over data with PostgreSQL + pgvector backend. Docker Compose or Fly.io deployment. Managed service data residency details not documented.",
+    "compliance": "No publicly documented SOC2, HIPAA, or GDPR certifications. Self-hosted deployment allows organizations to manage own compliance. AGPL-3.0 license may complicate some enterprise adoption (copyleft requirements). 152-FZ: possible via self-hosted only. [uncertain]",
+    "vendor_risk": "LOW-MODERATE. Mitigants: AGPL-3.0 open source, active development, $5.4M funding, strong research backing (Neuromancer XR, SOTA benchmarks), growing integration ecosystem. Risks: AGPL copyleft may deter some enterprises, small team (11 contributors), relatively low star count (414), Neuromancer XR model is proprietary (managed service dependency for best performance), major version changes (v2 to v3 with breaking changes).",
+    "migration_from_honcho": "N/A — Honcho IS the reference platform. All 6 mechanisms are native: Deriver (explicit extraction), Dreaming (offline analysis), Conclusions (typed reasoning), Peer Card (structured profile), Prefetch (context assembly), Dialectic (conversational query). This is the blueprint implementation that other platforms are compared against. Migration away from Honcho would require rebuilding all 6 mechanisms."
+  },
+  "uncertain": [
+    "dedup_strategy",
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "sharding_support",
+    "batch_api",
+    "max_users_production",
+    "concurrent_writes",
+    "storage_per_user",
+    "self_hosted_llm",
+    "structured_output_req",
+    "embedding_flexibility",
+    "critical_bugs",
+    "community_activity",
+    "api_stability",
+    "compliance"
+  ]
+}

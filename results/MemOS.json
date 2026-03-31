@@ -1,0 +1,90 @@
+{
+  "basic_info": {
+    "name": "MemOS",
+    "license": "Apache 2.0",
+    "release_date": "2025-05-28 (short paper on arXiv); 2025-07-07 (MemOS 1.0 Stellar Preview); 2025-12-24 (MemOS 2.0 Stardust)",
+    "last_commit": "2026-01-30 (v2.0.4 release) [uncertain]",
+    "github_stars": 7400,
+    "contributors": "10-20 [uncertain]",
+    "company": "MemTensor (Shanghai) Technology Co., Ltd. Academic affiliations: Shanghai Jiao Tong University, Renmin University of China, Zhejiang University",
+    "funding": "No publicly disclosed funding rounds. MemTensor appears to be a research-backed startup spun out of academic institutions. [uncertain]",
+    "pricing_model": "Open-source (Apache 2.0) + MemOS Cloud hosted service. Cloud API available at memos.memtensor.cn. Local deployment fully free. Cloud pricing tiers not publicly documented. [uncertain]"
+  },
+  "architecture": {
+    "storage_backend": "Hybrid. Local mode: SQLite with FTS5 full-text search + vector embeddings (100% on-device). Production mode: supports Redis Streams for scheduling, database optimizations for scale. MemVault module handles persistent storage. Hierarchical graph structure organized by task-concept-fact paths. Multi-layer partitions for memory organization.",
+    "extraction_method": "LLM-based. MemOS Interface Layer parses natural language, identifies memory-related intents, and invokes Memory APIs. Extraction produces MemCube objects containing semantic payload + structured metadata (provenance, timestamps, access control). Supports three memory types simultaneously: parametric (model weights), activation (KV caches, attention patterns), and plaintext (external data). Number of LLM calls per message not publicly documented. [uncertain]",
+    "dedup_strategy": "Hybrid: conflict detection + deduplication + versioning + forgetting policies. MemLifecycle manages memory states (Generated, Activated, Merged, Archived, Expired) based on access patterns, time decay, and task labels. Merge state handles deduplication. Version rollback and freezing mechanisms ensure auditability. MemOperator enables hybrid structural and semantic search for identifying duplicates.",
+    "temporal_support": "Strong bi-temporal-like model. MemLifecycle models memory lifecycle as a state machine with five states: Generated, Activated, Merged, Archived, Expired. Transitions based on access patterns, time decay, and task labels. Provenance API annotates memory sources with timestamps. LogQuery API queries usage traces. Version rollback and freezing for temporal consistency. 159% improvement in temporal reasoning vs OpenAI Memory on LOCOMO benchmark.",
+    "retrieval_method": "Hybrid: structural + semantic search. MemOperator manages memory through tagging systems, graph-based structures, and multi-layer partitions. MemScheduler dynamically selects memory type (parametric, activation, or plaintext) based on user-, task-, or organization-level context. Pluggable strategies: LRU, semantic similarity, label-based matching. Next-Scene Prediction mechanism proactively preloads relevant memory fragments during inference.",
+    "data_model": "MemCube (Memory Cube) - unified abstraction encapsulating three memory types under standardized scheduling: (1) Parametric Memory - knowledge in model weights via pretraining/fine-tuning, (2) Activation Memory - temporary internal states like KV caches and attention patterns, (3) Plaintext Memory - editable, retrievable external data. Each MemCube contains semantic payload + structured metadata (provenance, version, access control, lifecycle state). Graph-based organization with task-concept-fact hierarchical paths."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native fact extraction from conversations. Interface Layer parses messages, extracts memory-related intents, creates MemCube objects. Core functionality of the system.",
+    "dreaming": "1 - Partial. MemLifecycle manages memory evolution through state transitions (Generated -> Activated -> Merged -> Archived -> Expired). Memory merging consolidates related facts. Forgetting policies handle obsolete data. Next-Scene Prediction preloads memories. However, no explicit offline batch re-analysis or pattern synthesis described.",
+    "conclusions": "0 - No typed reasoning (deductive, inductive, abductive) over accumulated user data. MemOS focuses on memory storage, scheduling, and retrieval rather than deriving typed conclusions from accumulated facts.",
+    "peer_card": "0 - No guaranteed structured user profile with core identity fields. User data exists as MemCube objects organized in graph structure. No consolidated profile schema equivalent to Honcho Peer Card.",
+    "prefetch": "2 - Native. Next-Scene Prediction mechanism proactively preloads relevant memory fragments before inference. MemScheduler assembles context from multiple memory types (parametric + activation + plaintext) based on task context. Reduces latency and token consumption.",
+    "dialectic": "0 - No built-in conversational interface to query user memory. Memory APIs return structured results, not conversational synthesis. Chat interface exists but for general interaction, not memory introspection. [uncertain]",
+    "total_coverage": 5
+  },
+  "performance": {
+    "extraction_latency": "Not publicly documented with p50/p95 metrics. Cloud plugin reports 72% lower token usage than baseline, suggesting efficiency optimizations. [uncertain]",
+    "retrieval_latency_p95": "Not publicly documented. Next-Scene Prediction mechanism described as 'significantly reducing latency' but no specific p95 numbers published. [uncertain]",
+    "benchmark_locomo": "75.80 average (MemOS-0630). Detailed breakdown (MemOS web API/v1, 2025.11 evaluation): Single-hop 85.37%, Multi-hop 79.43%, Temporal 75.08%, Open-domain 64.58%, overall 80.76%. 38.9% overall improvement on LOCOMO benchmark vs baselines. Ranks first in all categories vs Mem0, Zep, Memobase, MemU, Supermemory, MIRIX. Uses 2,498 average tokens.",
+    "benchmark_longmemeval": "+40.43% improvement over baselines. Specific absolute score not publicly available. [uncertain]",
+    "tokens_per_extraction": "Cloud plugin benchmark: reduced token usage from 15.6M to 4.4M tokens (70% reduction) on LOCOMO long-conversation benchmark. Saves 35.24% memory tokens overall. Per-message token count not documented. [uncertain]",
+    "cost_per_1k_messages": "Not publicly documented. Local deployment with Ollama would have zero API costs. Cloud deployment costs depend on chosen LLM provider. 72% token reduction vs baseline suggests meaningful cost savings. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "Multi-layer partitions supported via MemOperator. Organization-level, user-level, and task-level memory isolation. Redis Streams for scheduling in v2.0. Specific horizontal sharding details not documented. [uncertain]",
+    "batch_api": "Not explicitly documented as batch API. MemOS Cloud API provides REST endpoints for memory operations. Bulk operations likely supported via API but specifics not publicly available. [uncertain]",
+    "max_users_production": "Not publicly disclosed. MemOS Cloud service operational at memos.memtensor.cn. Used in OpenClaw agent ecosystem. Production scale details not available. [uncertain]",
+    "concurrent_writes": "Redis Streams scheduling in v2.0 suggests asynchronous processing of concurrent operations. MemGovernance module provides access control. Specific concurrency guarantees not documented. [uncertain]",
+    "storage_per_user": "Local mode uses SQLite with FTS5 + vector embeddings. Per-user storage depends on memory volume and embedding dimensions. Not publicly benchmarked. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI, Azure OpenAI, Qwen (DashScope), DeepSeek, MiniMax, Ollama, HuggingFace, vLLM. 8+ providers.",
+    "self_hosted_llm": "Yes. Supports Ollama and vLLM for fully local deployment. Local Plugin (v1.0.0) enables 100% on-device memory with no external API calls.",
+    "structured_output_req": "Not explicitly documented. MemCube abstraction requires structured metadata but implementation details of LLM output parsing not publicly available. [uncertain]",
+    "embedding_flexibility": "Supports HuggingFace embedding models. Local mode uses on-device embeddings. Cloud mode supports provider-specific embeddings. Specific embedding model list not documented. [uncertain]"
+  },
+  "production_readiness": {
+    "known_deployments": "OpenClaw agent ecosystem integration (moltbot, clawdbot, openclaw). MemOS Cloud service at memos.memtensor.cn. MemOS-Cloud-OpenClaw-Plugin for agent memory. Academic benchmarking demonstrations. No Fortune 500 or large-scale production deployments publicly documented. [uncertain]",
+    "critical_bugs": "Relatively new project (v2.0.4 as of Jan 2026). Active issue tracker on GitHub. As a project still in early production stages, stability for enterprise use cases not yet proven. [uncertain]",
+    "documentation_quality": "3 - Paper documentation is comprehensive (two arXiv papers: short version 2505.22101 and full version 2507.03724). GitHub README covers installation and basic usage. DeepWiki provides API reference. However, production deployment guides and advanced configuration docs appear sparse. Chinese-language resources may be more comprehensive.",
+    "community_activity": "Moderately active. 7.4K GitHub stars. Active issues and discussions. Multiple releases (v1.0 Stellar July 2025, v2.0 Stardust Dec 2025, v2.0.4 Jan 2026). Primarily driven by MemTensor team with limited external contributors. [uncertain]",
+    "api_stability": "Rapidly evolving. Major version jumps: v1.0 (July 2025) to v2.0 (Dec 2025) in 5 months. API may have breaking changes between major versions. REST API endpoints documented but versioning policy not formalized. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes for self-hosted: Local Plugin provides 100% on-device memory with SQLite. Full data sovereignty possible. Cloud deployment at memtensor.cn (China-hosted). No EU/US cloud regions documented. [uncertain]",
+    "compliance": "No publicly documented SOC2, HIPAA, or GDPR certifications. MemGovernance module provides access control and permission enforcement at memory level. 152-FZ: possible via self-hosted deployment. China-based company may have Chinese regulatory compliance. [uncertain]",
+    "vendor_risk": "MODERATE-HIGH. Mitigants: Apache 2.0 license, strong academic backing (Shanghai Jiao Tong, Renmin University), novel MemCube architecture, active development, good benchmark scores. Risks: no disclosed funding, small team, China-based (regulatory considerations for non-Chinese enterprises), rapidly evolving API, limited production track record outside OpenClaw ecosystem, potential confusion with other 'MemOS' projects (agiresearch/MemOS, BAI-LAB/MemoryOS).",
+    "migration_from_honcho": "Deriver mechanism transfers well (native extraction to MemCube). Prefetch has strong native support via Next-Scene Prediction. Dreaming partially covered by MemLifecycle state machine evolution. Conclusions, Peer Card, Dialectic would need rebuilding. Data model difference: Honcho uses typed conclusions and peer cards; MemOS uses MemCube with three memory types (parametric/activation/plaintext). Migration effort: MODERATE for memory extraction + retrieval, HIGH for full Honcho feature parity."
+  },
+  "uncertain": [
+    "last_commit",
+    "contributors",
+    "funding",
+    "pricing_model",
+    "extraction_method",
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "sharding_support",
+    "batch_api",
+    "max_users_production",
+    "concurrent_writes",
+    "storage_per_user",
+    "structured_output_req",
+    "embedding_flexibility",
+    "known_deployments",
+    "critical_bugs",
+    "community_activity",
+    "api_stability",
+    "data_residency",
+    "compliance",
+    "dialectic"
+  ]
+}

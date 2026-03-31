@@ -1,0 +1,74 @@
+{
+  "basic_info": {
+    "name": "Graphiti",
+    "license": "Apache 2.0",
+    "release_date": "2024-08-08",
+    "last_commit": "2026-03-21",
+    "github_stars": 23000,
+    "contributors": 35,
+    "company": "Zep (getzep.com), headquartered in Oakland, CA",
+    "funding": "Y Combinator $500K seed (April 2024). Hit $1M ARR by June 2024. No publicly disclosed later rounds as of March 2026.",
+    "pricing_model": "Graphiti OSS is free (Apache 2.0). Zep Cloud SaaS: credit-based pricing, 1 episode = 1+ credits (>350 bytes costs multiple credits), 1000 free credits/month with lower priority. Enterprise tier available."
+  },
+  "architecture": {
+    "storage_backend": "Primary: Neo4j (property graph). Also supports FalkorDB (contributed by FalkorDB team) and Amazon Neptune. Graph stores entities as nodes, relationships as edges, plus episodic nodes for raw source data. All backends use Cypher query language.",
+    "extraction_method": "LLM-based extraction at ingestion time. Per episode: 4-6 LLM calls for node operations (entity extraction, classification, deduplication, summarization) + 2-4 LLM calls for edge operations (relationship extraction, dedup, contradiction detection). Total ~6-10 LLM calls per episode. Supports OpenAI structured output for reliable extraction.",
+    "dedup_strategy": "Three-tier deduplication pipeline: (1) exact string match, (2) fuzzy similarity scoring, (3) LLM-based semantic reasoning for ambiguous cases. Applied to both entity nodes and relationship edges. Contradictions resolved via temporal edge invalidation (old facts get valid_until timestamp) rather than deletion or LLM re-summarization.",
+    "temporal_support": "Full bi-temporal model. Every edge has explicit validity intervals: valid_from (when fact became true in real world) and valid_until (when superseded). Supports point-in-time queries ('what was true on date X') and current-state queries. Old facts are invalidated, never deleted, preserving complete history.",
+    "retrieval_method": "Zero-LLM hybrid retrieval combining: (1) semantic vector search over embeddings, (2) BM25 full-text keyword search, (3) direct graph traversal for relationship exploration. No LLM calls at query time — this is the key architectural differentiator. P95 retrieval latency ~300ms. Also supports temporal filtering in queries.",
+    "data_model": "Property graph with three core object types: (1) Entity Nodes — represent real-world subjects/objects (people, places, concepts), deduplicated 1:1 with real-world counterparts; (2) Episodic Nodes — store raw source text of each ingested episode (message, document chunk, JSON); (3) Edges (RELATES_TO) — typed relationships between entities with bi-temporal validity windows. Supports custom entity types and edge types via Pydantic models for domain-specific schemas."
+  },
+  "honcho_coverage": {
+    "deriver": "2 — Native fact extraction from conversation messages via LLM-based entity and relationship extraction pipeline. Automatically processes each episode into structured knowledge graph triples.",
+    "dreaming": "1 — Partial. Contradiction detection and temporal invalidation happen at ingestion time, not as separate offline process. No dedicated background 'dreaming' pipeline for pattern synthesis or preference shift analysis, though the temporal model enables retroactive analysis.",
+    "conclusions": "0 — No native typed conclusion system. Extracts factual triples (entity-relationship-entity) but does not perform deductive, inductive, or abductive reasoning over accumulated user data to generate higher-order conclusions.",
+    "peer_card": "0 — No built-in user profile card concept. User identity information is stored as entity nodes and relationships in the graph, but there is no guaranteed structured profile with core identity fields. Would need to be built as a custom layer on top.",
+    "prefetch": "1 — Partial. Retrieval API can assemble relevant facts for a query using hybrid search, but no built-in 'prefetch' mechanism that automatically assembles card + relevant facts + summary before each LLM response. Integration into agent loop is left to the developer.",
+    "dialectic": "1 — Partial. Graph can be queried conversationally via MCP server or API, but no dedicated 'tell me what you know about this user' dialectic chat interface. The search API supports natural language queries that return relevant graph nodes and edges.",
+    "total_coverage": 5
+  },
+  "performance": {
+    "extraction_latency": "Not officially published. Estimated 2-5s per episode (p50) given 6-10 LLM calls per episode. Highly dependent on LLM provider latency. [uncertain]",
+    "retrieval_latency_p95": "~300ms (zero-LLM retrieval). Sub-200ms claimed by Zep Cloud for optimized deployments.",
+    "benchmark_locomo": "Disputed. Zep claims 75.14% J-score on LoCoMo. Independent replication by Mem0 team found 58.44% ± 0.20 mean accuracy. Zep later published updated scores of ~80% at <200ms latency. Methodology differences are the primary source of disagreement.",
+    "benchmark_longmemeval": "Up to 18.5% aggregate accuracy improvement over full-transcript baseline, with individual evaluations showing >100% gains. 90% latency reduction compared to context-window approach. [uncertain]",
+    "tokens_per_extraction": "Estimated 3,000-8,000 tokens per episode across 6-10 LLM calls (extraction + dedup + classification + summarization). Exact numbers not officially published. [uncertain]",
+    "cost_per_1k_messages": "Estimated $1.50-$5.00 per 1K messages with GPT-4o-mini, $10-30 with GPT-4o. Highly variable based on message length, graph density, and chosen LLM. Community reports suggest costs are a significant concern. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "Relies on Neo4j/FalkorDB native sharding capabilities. Neo4j Enterprise supports clustering; FalkorDB supports horizontal scaling. Graphiti itself uses group_id for logical data isolation per user/session but does not implement its own sharding layer.",
+    "batch_api": "Supports bulk episode ingestion. The add_episode API processes episodes sequentially within a group. No dedicated high-throughput batch API for bulk operations across groups. [uncertain]",
+    "max_users_production": "Not publicly disclosed. Zep Cloud serves production traffic but specific user counts are not shared. Open-source deployments vary. [uncertain]",
+    "concurrent_writes": "Known issue: event loop conflicts when integrating graphiti-core into async frameworks (RuntimeError: Future attached to a different loop). Concurrent writes within same group_id may cause race conditions during deduplication. Neo4j handles concurrent transactions at storage level.",
+    "storage_per_user": "Depends on graph density. Estimated 5-20MB per user at 1000 memories in Neo4j, including node properties, edge properties, embeddings, and episodic text. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI (default), Azure OpenAI, Anthropic (Claude), Google Gemini, Groq, and local models via Ollama. Recent updates added support for GPT-5, Claude 4.5, Gemini 2.5.",
+    "self_hosted_llm": "Yes, supports Ollama for local/self-hosted LLM inference. However, works best with models supporting structured output (OpenAI, Gemini). Smaller or less capable models may produce incorrect output schemas and ingestion failures.",
+    "structured_output_req": "Strongly recommended. Works best with LLMs supporting structured output / function calling (OpenAI, Gemini). Using providers without structured output support may result in extraction failures. Anthropic requires separate OpenAI API key for embeddings and reranking.",
+    "embedding_flexibility": "Supports multiple embedding providers: OpenAI (default), Voyage AI, Google Gemini, Anthropic, and Sentence Transformers (local). Can mix LLM and embedding providers."
+  },
+  "production_readiness": {
+    "known_deployments": "Zep Cloud runs Graphiti in production as their core engine. Adopted by startups and enterprises for agent memory. Specific named production deployments not publicly disclosed. FalkorDB partnership suggests enterprise adoption. [uncertain]",
+    "critical_bugs": "CVE-2026-32247: Cypher injection vulnerability via unsanitized node_labels in search filters (fixed in v0.28.2). Event loop conflicts in async frameworks (RuntimeError: Future attached to a different loop). LLM compatibility issues with models lacking structured output support. HTTP API documentation gaps.",
+    "documentation_quality": "3 — Moderate. Official docs at help.getzep.com cover core concepts and quick start. HTTP API documentation described as 'poorly documented' (GitHub issue #169). Good conceptual docs and blog posts, but gaps in API reference and advanced configuration. Active improvement.",
+    "community_activity": "High activity: 23K GitHub stars, 35+ contributors, regular releases (multiple per month). Active issue tracker. Strong blog and content output. MCP server integration drove significant adoption. Crossed 14K stars in 8 months, 20K in ~14 months.",
+    "api_stability": "Pre-1.0 (currently v0.28.x). Breaking changes may occur between minor versions. Rapid iteration with frequent releases. No formal API versioning policy published. Custom schema API still evolving."
+  },
+  "enterprise_fit": {
+    "data_residency": "Fully self-hostable via open-source Graphiti + self-managed Neo4j/FalkorDB. Zep Cloud is cloud-only (no on-prem option for managed service). Self-hosted deployment keeps all data within customer infrastructure.",
+    "compliance": "Zep Cloud: SOC2 Type 2 and HIPAA compliant. Self-hosted Graphiti: compliance depends on customer's own infrastructure and Neo4j/FalkorDB deployment. No specific GDPR certification for OSS, but self-hosting enables GDPR compliance. No 152-FZ specific certification.",
+    "vendor_risk": "Low-moderate. Apache 2.0 license provides strong protection against license changes. Active development by funded company (Zep). Risk: small team (5 people as of 2024), single primary maintainer organization. Neo4j dependency is well-established. FalkorDB alternative reduces single-vendor lock-in for storage layer.",
+    "migration_from_honcho": "Deriver mechanism maps well to Graphiti's episode ingestion + entity/relationship extraction. Temporal model is a strength (bi-temporal > Honcho's metadata timestamps). Missing: Dreaming (no offline synthesis), Conclusions (no typed reasoning), Peer Card (no structured profile), Dialectic (no conversational memory query). Would need custom layers for 4 of 6 Honcho mechanisms. Graph-based data model is fundamentally different from Honcho's flat conclusions — migration requires data transformation, not just transfer."
+  },
+  "uncertain": [
+    "extraction_latency",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "batch_api",
+    "max_users_production",
+    "storage_per_user",
+    "known_deployments"
+  ]
+}

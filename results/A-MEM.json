@@ -1,0 +1,77 @@
+{
+  "basic_info": {
+    "name": "A-MEM (Agentic Memory)",
+    "license": "MIT",
+    "release_date": "2025-02-17 (arXiv preprint); NeurIPS 2025 poster",
+    "last_commit": "2025-02 [uncertain]",
+    "github_stars": 941,
+    "contributors": "5-10 [uncertain]",
+    "company": "Rutgers University (AGI Research Lab) + Ant Group + Salesforce Research",
+    "funding": "Academic research project. No commercial funding disclosed. Authors affiliated with Rutgers University, Ant Group, and Salesforce Research.",
+    "pricing_model": "Free / OSS (MIT license). Research prototype only, no commercial offering."
+  },
+  "architecture": {
+    "storage_backend": "ChromaDB (vector database). Persistent vector embedding storage with automatic metadata handling. Linear O(N) storage scaling — approximately 1.46 MB per 1,000 memories. No graph DB, no relational DB.",
+    "extraction_method": "LLM-based agentic extraction. When new memory is added, LLM generates a comprehensive Zettelkasten-style note with structured attributes: contextual description, keywords, tags. Then LLM analyzes historical memories to identify connections and establish links. Finally, LLM may trigger evolution of existing memories. Approximately 1,200 tokens per memory operation (85-93% reduction vs baselines like MemGPT at ~16,900 tokens). Single agentic LLM call orchestrates note creation, linking, and evolution.",
+    "dedup_strategy": "No explicit deduplication mechanism. Relies on semantic similarity during link generation to avoid redundant connections. Memory evolution can update existing memories when new information supersedes old, but no formal duplicate detection or LLM judge for conflict resolution.",
+    "temporal_support": "Metadata timestamps on each memory note. Memory evolution enables existing memories to dynamically adapt when new experiences are analyzed — updated memories replace originals in the collection. No bi-temporal model. No explicit temporal reasoning beyond timestamps.",
+    "retrieval_method": "Dense vector retrieval. Query is encoded to dense vector, cosine similarity computed against all stored memory embeddings, top-k matches retrieved. Retrieved memories include linked memories within the same semantic 'box' (connected Zettelkasten cluster). Embeddings computed from concatenation of content + keywords + tags + context. No BM25, no graph traversal.",
+    "data_model": "Zettelkasten-style atomic notes. Each memory contains: (1) original interaction content, (2) timestamp, (3) LLM-generated keywords capturing key concepts, (4) tags for categorization, (5) contextual description providing semantic understanding, (6) linked memories sharing relationships. Vector embedding computed from concat(content, keywords, tags, context). Memories form an interconnected knowledge network via dynamic links."
+  },
+  "honcho_coverage": {
+    "deriver": "1 - Partial. LLM extracts structured attributes (keywords, tags, context) from raw content, but extraction is focused on Zettelkasten note creation rather than explicit fact derivation. No dedicated fact extraction pipeline.",
+    "dreaming": "1 - Partial. Memory evolution mechanism triggers updates to existing memories when new memories are integrated, enabling the network to refine understanding over time. However, this is opportunistic (triggered per new memory) rather than true offline batch analysis or pattern synthesis.",
+    "conclusions": "0 - No typed reasoning (deductive, inductive, abductive) over accumulated memories. System stores enriched notes with contextual descriptions but does not derive typed conclusions.",
+    "peer_card": "0 - No structured user profile or identity card. Memories are stored as individual Zettelkasten notes without consolidation into a user profile schema.",
+    "prefetch": "1 - Partial. Retrieves top-k relevant memories via vector similarity before response generation, including linked memories from the same cluster. But no structured context assembly combining profile + facts + summary.",
+    "dialectic": "0 - No conversational query interface over memory. Search returns raw memory notes, not conversational synthesis about a user.",
+    "total_coverage": 3
+  },
+  "performance": {
+    "extraction_latency": "p50: 5.4s (GPT-4o-mini); 1.1s (Llama 3.2-1B local). Includes full note creation + link generation + evolution steps.",
+    "retrieval_latency_p95": "Sub-microsecond to low microseconds. At 1K memories: 0.31 ± 0.30 μs; at 10K: 0.38 ± 0.25 μs; at 100K: 1.40 ± 0.49 μs; at 1M: 3.70 ± 0.74 μs. Extremely fast vector retrieval via ChromaDB.",
+    "benchmark_locomo": "Tested on LoCoMo dataset across 5 QA categories (Single Hop, Multi Hop, Temporal, Open Domain, Adversarial). GPT-4o-mini F1/BLEU-1: Multi-Hop 45.85/36.67 (vs MemGPT 25.52/19.44), Open Domain 44.65/37.06, Adversarial 50.03/49.47. Consistently outperforms baselines across all 6 models tested. Doubles performance on complex multi-hop reasoning tasks.",
+    "benchmark_longmemeval": "Not tested. [uncertain]",
+    "tokens_per_extraction": "~1,200 tokens per memory operation. 85-93% reduction compared to baseline methods (MemGPT uses ~16,900 tokens).",
+    "cost_per_1k_messages": "Less than $0.30 per 1K messages using commercial APIs (at <$0.0003 per operation). Significantly cheaper than baselines due to token reduction. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "No native sharding. Single ChromaDB instance. Research prototype not designed for multi-tenant horizontal scaling.",
+    "batch_api": "No batch API. Memories processed individually. Research prototype with sequential processing.",
+    "max_users_production": "Research prototype only. No known production deployments. Tested up to 1M memories in scalability experiments. [uncertain]",
+    "concurrent_writes": "No concurrent write handling. Single-threaded research prototype. ChromaDB handles basic concurrent access at storage level. [uncertain]",
+    "storage_per_user": "~1.46 MB per 1,000 memories (linear O(N) scaling, no overhead vs baselines)."
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI (GPT-4o, GPT-4o-mini), Ollama (local models). Paper tested: GPT-4o, GPT-4o-mini, Qwen2.5-1.5B, Qwen2.5-3B, Llama 3.2-1B, Llama 3.2-3B, DeepSeek-R1-32B, Claude 3.0 Haiku, Claude 3.5 Haiku.",
+    "self_hosted_llm": "Yes. Supports Ollama for fully local deployment. Tested with Llama 3.2-1B/3B and Qwen2.5-1.5B/3B locally.",
+    "structured_output_req": "Yes. LLM must generate structured Zettelkasten notes with specific fields (keywords, tags, context, links). Requires instruction-following capability. [uncertain]",
+    "embedding_flexibility": "all-MiniLM-L6-v2 (default, via sentence-transformers). ChromaDB compatible with other embedding models but only MiniLM documented. [uncertain]"
+  },
+  "production_readiness": {
+    "known_deployments": "No known production deployments. Research prototype with academic paper. MCP server adaptation exists (tobs-code/a-mem-mcp-server) for IDE integration, but community-built.",
+    "critical_bugs": "Research prototype — not designed for production use. No issue tracker activity indicates production usage. Code repository appears to have limited maintenance post-publication. [uncertain]",
+    "documentation_quality": "2 - Sparse. README with basic installation and usage examples. Paper provides theoretical depth but code documentation is minimal. No API reference, no configuration guide beyond basic examples.",
+    "community_activity": "Low-moderate. 941 GitHub stars indicating research interest. Multiple forks (99+). Limited ongoing development — repository appears primarily for paper reproducibility. No active issue resolution cadence. [uncertain]",
+    "api_stability": "Research prototype. No versioning policy. API may change without notice. Not intended for production integration. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Fully self-hosted possible (ChromaDB local + Ollama local). No cloud dependency required. Full data sovereignty achievable.",
+    "compliance": "No compliance certifications. Research prototype. Self-hosted deployment allows organizations to manage own compliance. No GDPR, SOC2, HIPAA, or 152-FZ documentation.",
+    "vendor_risk": "High risk. Academic research project with no commercial backing. Limited maintenance post-publication. MIT license is permissive but project could be abandoned. MemOS (successor project by same team at agiresearch) may supersede A-MEM.",
+    "migration_from_honcho": "Significant effort. A-MEM covers only basic extraction (partial) and retrieval. Missing: Dreaming (only partial evolution), Conclusions, Peer Card, Dialectic. Would need to rebuild: fact typing, user profiles, offline analysis, conversational memory query. Zettelkasten linking is unique capability not in Honcho but overall mechanism coverage is low (3/12)."
+  },
+  "uncertain": [
+    "last_commit",
+    "contributors",
+    "benchmark_longmemeval",
+    "cost_per_1k_messages",
+    "max_users_production",
+    "concurrent_writes",
+    "structured_output_req",
+    "embedding_flexibility",
+    "critical_bugs",
+    "community_activity",
+    "api_stability"
+  ]
+}

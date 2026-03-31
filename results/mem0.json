@@ -1,0 +1,75 @@
+{
+  "basic_info": {
+    "name": "Mem0",
+    "license": "Apache 2.0",
+    "release_date": "2024-01 (initial public launch)",
+    "last_commit": "2026-03-29",
+    "github_stars": 48000,
+    "contributors": "200+ [uncertain]",
+    "company": "Mem0, Inc. (YC W24)",
+    "funding": "$24M total: $3.9M seed (Kindred Ventures), $20M Series A (Basis Set Ventures, Peak XV Partners, GitHub Fund, Y Combinator). Announced October 2025.",
+    "pricing_model": "Freemium SaaS + OSS self-hosted. Hobby (free): 10K memories, 1K retrieval calls/mo. Starter ($19/mo): 50K memories, 5K retrieval calls/mo. Pro ($249/mo): unlimited memories, 50K retrieval calls/mo, graph memory, analytics. Enterprise: custom pricing, on-prem deployment, SSO, SLA. Startup program: 3 months free Pro for companies under $5M funding."
+  },
+  "architecture": {
+    "storage_backend": "Hybrid: vector DB (primary) + optional graph DB. Vector stores: 23+ supported including Qdrant, Pinecone, ChromaDB, Milvus, Weaviate, FAISS, pgvector, Redis, Elasticsearch, OpenSearch, Azure AI Search, Vertex AI Vector Search, Upstash, Supabase, MongoDB, S3 Vectors, Databricks. Graph stores (optional): Neo4j, Memgraph, Neptune, Kuzu, Apache AGE, FalkorDB. Relational metadata stored alongside vectors.",
+    "extraction_method": "LLM-based. Two-phase pipeline: (1) Extraction Phase - ingests latest exchange, rolling summary, and recent messages; LLM extracts candidate memories as concise facts. (2) Update Phase - compares extracted memories against existing similar ones via vector similarity, then LLM decides add/update/delete via tool call mechanism. Three parallel background LLM processes per interaction: updating conversation timeline, identifying facts, saving to vector store. Approximately 3+ LLM calls per message.",
+    "dedup_strategy": "Hybrid: vector similarity search to find candidate duplicates, then LLM judge decides whether to ADD (new fact), UPDATE (modify existing), DELETE (contradicted/obsolete), or NOOP (already exists). Uses cosine similarity threshold to retrieve candidate matches, then structured LLM output for conflict resolution.",
+    "temporal_support": "Metadata timestamps on memories (created_at). Graph nodes include creation timestamps. No bi-temporal model. Contradiction resolution via LLM judge during update phase replaces outdated facts rather than maintaining temporal history.",
+    "retrieval_method": "Hybrid: vector similarity search (primary) + optional graph traversal. Vector search uses embedding similarity over stored memory facts. Graph memory enables relationship-aware traversal (e.g., find all entities connected to user). Optional reranker component for relevance scoring. BM25 not natively supported as primary method.",
+    "data_model": "Flat facts (vector mode): each memory is a concise text fact with embedding vector and metadata (user_id, agent_id, timestamps, custom metadata). Graph mode (Mem0g): extends with entity-relation triples stored as directed labeled graphs - nodes (entities with type, embedding, metadata) and edges (relationship triplets: source-relation-destination). Example: 'user -- has_manager -- sarah'. Both modes can operate simultaneously."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native fact extraction from conversation messages. Two-phase extraction+update pipeline with LLM-based memory extraction is core functionality.",
+    "dreaming": "0 - No offline analysis, pattern synthesis, or background processing of accumulated memories. All processing is synchronous per-message. No batch re-analysis or preference shift detection.",
+    "conclusions": "0 - No typed reasoning (deductive, inductive, abductive) over accumulated user data. Memories are stored as extracted facts, not derived conclusions with reasoning types.",
+    "peer_card": "0 - No guaranteed structured user profile with core identity fields. User data exists as flat memory facts without a consolidated profile schema. Must be assembled manually from individual memories.",
+    "prefetch": "1 - Partial. Retrieves relevant memories via vector search before LLM response, but no structured context assembly combining card + facts + summary into a single prefetch payload. Developer must implement the assembly logic.",
+    "dialectic": "0 - No built-in conversational interface to query user memory ('tell me what you know about this user'). Search API returns raw memory results, not conversational synthesis.",
+    "total_coverage": 3
+  },
+  "performance": {
+    "extraction_latency": "p50: ~200ms for retrieval. Extraction (add) latency depends on LLM provider; typically 1-3 seconds per message due to multiple LLM calls. [uncertain]",
+    "retrieval_latency_p95": "0.15s (150ms) on LOCOMO benchmark. 91% lower than full-context approaches (1.44s vs 17.12s p95).",
+    "benchmark_locomo": "66.9% accuracy (LLM-as-Judge score). 26% relative uplift over OpenAI memory (52.9%). Note: reproducibility disputed in community - GitHub issue #3944 reports failure to reproduce accuracy via Mem0 platform.",
+    "benchmark_longmemeval": "Not officially published. LongMemEval is considered much harder than LOCOMO. No public Mem0 scores available. [uncertain]",
+    "tokens_per_extraction": "~1.8K tokens per conversation for retrieval (vs 26K for full-context). Extraction phase consumes more - benchmark showed 2 billion input tokens total over 1,028 LLM calls per case. [uncertain]",
+    "cost_per_1k_messages": "Estimated $2-8 per 1K messages using GPT-4o-mini for extraction (3+ LLM calls per message at ~1-2K tokens each). Significantly lower with self-hosted models via Ollama. Exact cost depends heavily on chosen LLM provider and model. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "Delegated to underlying vector/graph DB. No native application-level sharding. User isolation via user_id parameter on all operations. Horizontal scaling depends on chosen backend (e.g., Qdrant clusters, Pinecone serverless).",
+    "batch_api": "Yes. Batch-delete and batch-update operations supported. Async operations via asyncio.gather for throughput. Concurrency should be capped based on backend capacity. AsyncMemory class for non-blocking I/O.",
+    "max_users_production": "Thousands of teams including Fortune 500 companies. 186 million API calls in Q3 2025 (cloud platform). Specific max user count not disclosed. [uncertain]",
+    "concurrent_writes": "Handled via async operations (AsyncMemory). Multiple memory tasks scheduled with asyncio.gather. Conflict resolution at memory level via LLM judge (not database-level locking). Backend-dependent concurrency limits.",
+    "storage_per_user": "Depends on vector DB and embedding dimensions. Roughly 1-5KB per memory fact (embedding + metadata). At 1000 memories: ~1-5MB per user for vector store. Graph memory adds overhead for nodes and edges. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI, Anthropic Claude, Google Gemini, Groq, Together AI, AWS Bedrock, Azure OpenAI, LiteLLM, DeepSeek, xAI, Sarvam, LM Studio, vLLM, Ollama. 15+ providers total.",
+    "self_hosted_llm": "Yes. Full support for Ollama (default provider for local setups), vLLM, LM Studio. Can run entirely locally with Ollama for both LLM and embeddings. Models like llama3.1, mistral supported.",
+    "structured_output_req": "Yes. Uses JSON object response format for memory operations (add/update/delete decisions). Known bug: OpenAI requires 'json' keyword in system prompt when using json_object format - graph memory writes fail without it (issue #4248).",
+    "embedding_flexibility": "Supports multiple embedding providers: OpenAI (text-embedding-3-small/large), Ollama (nomic-embed-text, snowflake-arctic-embed, qwen3-embedding), HuggingFace models, Azure OpenAI embeddings, Google embeddings. Embedder configured independently from LLM provider. MRL-compatible models supported for dimension truncation."
+  },
+  "production_readiness": {
+    "known_deployments": "CrewAI (native integration), Flowise (native integration), Langflow (native integration), AWS Agent SDK (exclusive memory provider). Thousands of teams from startups to Fortune 500. 186M API calls/quarter on cloud platform (Q3 2025). $1M revenue with 5-person team in 2024.",
+    "critical_bugs": "1) Graph memory writes fail with OpenAI 400 error - DELETE_RELATIONS_SYSTEM_PROMPT missing 'json' keyword (issue #4248). 2) Memory deletion does not clean up Neo4j graph data - orphaned nodes/edges accumulate (issue #3245). 3) CVE-2026-0994 in protobuf dependency - pinned version prevents security patch (issue #3963). 4) AsyncMemory incompatible with graph stores other than Neo4j (issue #3196). 5) SQLite bindings regression in OpenClaw integration. 6) LOCOMO benchmark scores not reproducible via platform (issue #3944).",
+    "documentation_quality": "3.5 - Documentation covers basics well (quickstart, configuration, API reference). DeepWiki provides detailed architecture docs. However: graph memory docs have gaps, Azure OpenAI integration poorly documented, several reported issues stem from unclear docs. Changelog maintained.",
+    "community_activity": "Very active. ~48K GitHub stars. 5,750+ commits. Active issue tracker with regular responses. Multiple releases per month. Discord community. However, some critical issues remain open for months.",
+    "api_stability": "Breaking changes in v1.0.0 Beta. API has undergone significant evolution from embedchain (original name) to mem0. Graph memory API still maturing with known bugs. Core vector memory API relatively stable. No formal versioning policy documented. [uncertain]"
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes for OSS self-hosted: full control over data location with any supported vector/graph DB backend. Cloud platform: data residency details not publicly documented. Enterprise plan offers on-prem deployment.",
+    "compliance": "No publicly documented SOC2, HIPAA, or GDPR certifications. Enterprise plan mentions 'advanced security' but specifics not disclosed. Self-hosted deployment allows organizations to manage their own compliance. 152-FZ: possible via self-hosted only. [uncertain]",
+    "vendor_risk": "MODERATE. Mitigants: Apache 2.0 license, large community (48K stars), $24M funding, YC backing, growing revenue. Risks: rapid API evolution with breaking changes, graph memory still unstable, cloud platform lock-in if using managed features (analytics, graph on Pro tier). Original project renamed from embedchain to mem0 (precedent for major changes).",
+    "migration_from_honcho": "Deriver mechanism transfers well (native in mem0). Dreaming, Conclusions, Peer Card, Dialectic Chat would need complete rebuilding. Prefetch partially covered but requires custom assembly logic. Data model difference: Honcho uses typed conclusions and structured peer cards; mem0 uses flat facts + optional graph triples. Migration effort: HIGH for full Honcho feature parity, LOW for basic fact extraction only."
+  },
+  "uncertain": [
+    "contributors",
+    "extraction_latency",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "max_users_production",
+    "storage_per_user",
+    "api_stability",
+    "compliance"
+  ]
+}

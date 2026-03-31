@@ -1,0 +1,80 @@
+{
+  "basic_info": {
+    "name": "Microsoft Foundry Memory (Foundry Agent Service Memory)",
+    "license": "Proprietary (managed Azure service, no open-source component)",
+    "release_date": "2025-11 (public preview announced at Microsoft Ignite 2025)",
+    "last_commit": "N/A (managed cloud service, not open-source)",
+    "github_stars": "N/A",
+    "contributors": "N/A (Microsoft internal team)",
+    "company": "Microsoft",
+    "funding": "N/A (Microsoft corporate product, part of Azure AI Foundry platform)",
+    "pricing_model": "Free during public preview. Users pay only for underlying Azure OpenAI chat and embedding model usage. Post-GA pricing not yet announced. Memory is part of Foundry Agent Service which has its own pricing tiers."
+  },
+  "architecture": {
+    "storage_backend": "Azure Cosmos DB for NoSQL (globally distributed document database). Memory data stored in a dedicated 'enterprise_memory' database with three containers within the user's Azure subscription. Cosmos DB provides built-in vector search via DiskANN indexing with ~15ms vector query latency. No user choice of storage backend — fully managed by the service.",
+    "extraction_method": "LLM-based, three-phase pipeline: (1) Extraction — system actively extracts key information from conversations (user preferences, facts, relevant context) using Azure OpenAI models (GPT-4o-mini or GPT-4o recommended). (2) Consolidation — LLM merges similar/duplicate topics and resolves conflicting facts. (3) Retrieval — hybrid search surfaces relevant memories. Developers can guide extraction via user_profile_details parameter to prioritize specific data types. Number of LLM calls per message not publicly documented. [uncertain]",
+    "dedup_strategy": "LLM-based consolidation phase. The system uses LLMs to merge similar or duplicate topics so the agent doesn't store redundant information. Conflicting facts are detected and resolved to maintain a single accurate memory (e.g., updated allergies replace old ones). Consolidation is performed for user profile memories but NOT for chat summary memories.",
+    "temporal_support": "Implicit temporal handling via consolidation — newer facts override older conflicting facts. No explicit bi-temporal model documented. Chat summaries maintain chronological conversation history. No public documentation of timestamp-based temporal queries or fact versioning. [uncertain]",
+    "retrieval_method": "Hybrid search techniques (details not fully disclosed). Likely combines vector similarity search (via Cosmos DB DiskANN) with keyword/semantic search. Two access patterns: (1) memory_search_tool attached to prompt agent for automatic read/write during conversations, (2) memory store APIs for direct low-level access. Retrieval uses embedding models (text-embedding-3-large or similar).",
+    "data_model": "Two memory types: (1) User Profile Memory — stable user facts and preferences (preferred name, dietary constraints, etc.), consolidated and deduplicated. (2) Chat Summary Memory — condensed conversation histories, not consolidated, preserving session-level context. No entity-relation graph model. Memories are flat structured facts organized by type. Developers can customize what gets extracted via user_profile_details parameter."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native fact extraction from conversation messages. Core feature of the service — automatically extracts user preferences, facts, and context from conversations using LLM-based extraction phase.",
+    "dreaming": "1 - Partial. Consolidation phase performs offline-like merging and deduplication of accumulated memories, resolves conflicts. However, no documented pattern synthesis, preference shift detection, or deep cross-session analysis beyond dedup/merge.",
+    "conclusions": "0 - No typed reasoning (deductive, inductive, abductive) over user data. Memories are stored as extracted facts and summaries, not derived conclusions with reasoning types.",
+    "peer_card": "2 - Native. User Profile Memory is a dedicated memory type that maintains stable user facts and preferences as a structured profile. Developers can specify which profile fields to prioritize via user_profile_details parameter.",
+    "prefetch": "2 - Native. Memory search tool automatically surfaces relevant memories (both user profile and chat summaries) before agent response. Context assembly is handled by the managed service — the agent receives relevant memories as part of its context.",
+    "dialectic": "0 - No built-in conversational query interface over user memory. Memory is retrieved programmatically via search tool or API, not through a conversational 'tell me about this user' interface.",
+    "total_coverage": 7
+  },
+  "performance": {
+    "extraction_latency": "Not publicly benchmarked. Microsoft recommends using small models (GPT-4o-mini, GPT-4.1-nano) for memory operations to minimize latency overhead. Cosmos DB DiskANN vector queries run at ~15ms. Total extraction latency depends on LLM call time. [uncertain]",
+    "retrieval_latency_p95": "Cosmos DB DiskANN vector search: ~15ms. Total retrieval latency including LLM processing not publicly disclosed. [uncertain]",
+    "benchmark_locomo": "Not published. No public LOCOMO benchmark scores for Foundry Memory. [uncertain]",
+    "benchmark_longmemeval": "Not published. No public LongMemEval benchmark scores for Foundry Memory. [uncertain]",
+    "tokens_per_extraction": "Not publicly disclosed. Depends on chosen Azure OpenAI model and conversation length. [uncertain]",
+    "cost_per_1k_messages": "Memory features free during preview. Underlying cost is Azure OpenAI model usage (chat model for extraction/consolidation + embedding model for vectorization). Estimated $1-5 per 1K messages using GPT-4o-mini for extraction + text-embedding-3-large for embeddings, plus Cosmos DB storage costs. Exact cost depends on conversation complexity and model choice. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "Native via Azure Cosmos DB global distribution. Cosmos DB provides automatic partitioning and horizontal scaling. Data isolation by user via memory store scoping. Global replication across Azure regions.",
+    "batch_api": "Memory store APIs provide low-level CRUD operations. Batch operations not explicitly documented for memory-specific endpoints. Standard Azure SDK async patterns available. [uncertain]",
+    "max_users_production": "Not publicly disclosed. Backed by Azure Cosmos DB which supports millions of users at enterprise scale. Service is in public preview, so production scale limits may apply. [uncertain]",
+    "concurrent_writes": "Handled by Azure Cosmos DB with built-in concurrency control. Cosmos DB supports high-throughput concurrent writes with configurable consistency levels (strong, bounded staleness, session, eventual). Memory consolidation phase resolves logical conflicts via LLM.",
+    "storage_per_user": "Not publicly documented. Cosmos DB storage pricing applies. Embedding dimensions: 1,536 (text-embedding-3-large). Estimated similar to other vector-based systems: 1-5MB per user at 1000 memories. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "Azure OpenAI only. Supported chat models: GPT-4o, GPT-4o-mini, GPT-4.1, GPT-4.1-mini, GPT-4.1-nano (recommended: small models for memory ops). Supported embedding models: text-embedding-3-large, text-embedding-3-small. No support for non-Azure LLM providers.",
+    "self_hosted_llm": "No. Requires Azure OpenAI model deployments. Cannot use self-hosted models (Ollama, vLLM, etc.) for memory extraction or embedding.",
+    "structured_output_req": "Managed by the service — developers do not need to handle structured output requirements directly. The service handles LLM interaction internally. [uncertain]",
+    "embedding_flexibility": "Limited to Azure OpenAI embedding models: text-embedding-3-large, text-embedding-3-small. No support for custom or third-party embedding models."
+  },
+  "production_readiness": {
+    "known_deployments": "Public preview since November 2025. Part of Microsoft Foundry Agent Service used by enterprise customers. Specific production deployments with memory feature not publicly disclosed (preview status). IntelePeer mentioned as Cosmos DB agentic memory customer (related but may use custom implementation). [uncertain]",
+    "critical_bugs": "Service is in public preview — expect breaking changes and limitations. Known limitations: (1) Regional availability limited to specific Azure regions with compatible model deployments. (2) Only Azure OpenAI models supported. (3) Chat summaries not consolidated (potential memory bloat). (4) No explicit documentation on memory limits per user or store. [uncertain]",
+    "documentation_quality": "4 - Good. Microsoft Learn documentation covers concepts, how-to guides, SDK examples (Python), REST API reference, and LangChain/LangGraph integration. Transparency note available. However, internal architecture details (exact LLM prompts, consolidation algorithms) are opaque as managed service.",
+    "community_activity": "Limited community-specific activity since it's a managed Azure service. Support via Microsoft Q&A forums, GitHub Discussions (microsoft-foundry org). Azure support tiers available. No open-source community contributions.",
+    "api_stability": "Preview API (2025-11-15-preview). Breaking changes expected before GA. Microsoft typically maintains backward compatibility at GA. Versioned REST API with SDK wrappers (azure-ai-projects Python package)."
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes, within Azure. Memory stored in Azure Cosmos DB within the customer's Azure subscription. Data Zone deployments available for geographic restrictions (e.g., EU Data Zone for GDPR). Azure region selection controls data residency. Cannot be deployed outside Azure (no on-premises or self-hosted option).",
+    "compliance": "Inherits Azure compliance certifications: SOC 1/2/3, ISO 27001, ISO 27701, GDPR, HIPAA (via BAA), FedRAMP, and 50+ other certifications. EU Data Zone deployments for strict GDPR compliance. 152-FZ: possible only if Azure regions in Russia are available (currently limited). Most comprehensive compliance posture among memory solutions.",
+    "vendor_risk": "HIGH lock-in, LOW abandonment risk. Full vendor lock-in to Azure ecosystem (Cosmos DB + Azure OpenAI). No open-source fallback. Microsoft has strong track record of long-term service support. Risk: service is in preview and may change significantly before GA. Migration away from Azure would require complete reimplementation. However, Microsoft's scale and enterprise commitment reduce abandonment risk significantly.",
+    "migration_from_honcho": "Deriver transfers well (native extraction). Peer Card transfers well (User Profile Memory is analogous). Prefetch transfers well (memory search tool provides similar context assembly). Dreaming partially covered by consolidation. Conclusions would need complete rebuilding (no typed reasoning). Dialectic Chat would need complete rebuilding. Data model difference: Honcho uses typed conclusions; Foundry uses flat user profiles + chat summaries. Migration effort: MODERATE for core features (extraction + profile + prefetch), HIGH for full Honcho parity (conclusions, dialectic, advanced dreaming)."
+  },
+  "uncertain": [
+    "extraction_method",
+    "temporal_support",
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "benchmark_locomo",
+    "benchmark_longmemeval",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "batch_api",
+    "max_users_production",
+    "storage_per_user",
+    "structured_output_req",
+    "known_deployments",
+    "critical_bugs"
+  ]
+}

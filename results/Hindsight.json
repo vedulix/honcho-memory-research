@@ -1,0 +1,78 @@
+{
+  "basic_info": {
+    "name": "Hindsight",
+    "license": "MIT",
+    "release_date": "2025-12-16 (public launch, arxiv paper 2512.12818)",
+    "last_commit": "2026-03-30",
+    "github_stars": 6600,
+    "contributors": 29,
+    "company": "Vectorize, Inc. (Dover, DE)",
+    "funding": "$3.6M seed round (October 2024). Investors: True Ventures (lead), DIG Ventures.",
+    "pricing_model": "OSS self-hosted (MIT, free) + managed cloud (Hindsight Cloud). Cloud has free tier + usage-based paid tiers. All features available at every tier (graph, temporal, BM25, reranking). Enterprise: custom plans for advanced workloads, security requirements."
+  },
+  "architecture": {
+    "storage_backend": "PostgreSQL 14+ with pgvector (required). Production deployments add pgvectorscale and vchord for optimized vector search. Single storage backend — no pluggable vector DB layer. Entity-aware knowledge graph built on top of PostgreSQL. pg_trgm extension used for trigram indexing.",
+    "extraction_method": "LLM-based. Retain pipeline extracts structured facts from messages, resolves entities, and stores into 4 logical networks (world, experience, opinion, observation). Sophisticated token reduction techniques in Retain pipeline minimize LLM costs. Entity resolution performed during extraction. Multiple LLM calls per retain operation for fact extraction + entity resolution + graph updates. [uncertain]",
+    "dedup_strategy": "Entity resolution during retain: identifies and merges duplicate entities. Opinion network handles contradictions via confidence-based reinforcement — supporting evidence increases confidence, weak evidence decreases it, strong contradiction reduces both confidence and opinion text. Entity cooccurrence tracking for relationship dedup.",
+    "temporal_support": "Native temporal awareness. Tempr (Temporal Entity Memory Priming Retrieval) builds a temporal, entity-aware memory graph. Temporal filtering is one of 4 parallel retrieval strategies. Time-series representation for entities. Beliefs evolve over time with confidence scores. Not a full bi-temporal model but significantly more temporal-aware than flat timestamp metadata.",
+    "retrieval_method": "4-way hybrid retrieval running in parallel: (1) semantic/dense vector search, (2) BM25 keyword matching, (3) entity graph traversal, (4) temporal filtering. Results fused via Reciprocal Rank Fusion (RRF), then reranked with cross-encoder and multiplicative boost scoring. LLM-free recall — zero LLM cost for retrieval.",
+    "data_model": "4 logical networks: (1) World — objective facts about the external world, (2) Experience — agent's own experiences, (3) Opinion — subjective beliefs with confidence scores that evolve over time, (4) Observation (Mental Models) — preference-neutral summaries of entities synthesized from underlying facts via reflect. Memories represented as combination of entities, relationships, and time series with sparse/dense vector representations."
+  },
+  "honcho_coverage": {
+    "deriver": "2 - Native fact extraction via Retain operation. Extracts structured facts from conversation, resolves entities, builds knowledge graph. Core functionality.",
+    "dreaming": "2 - Native via Reflect operation (Cara component). Offline analysis that synthesizes patterns from accumulated facts and experiences into observations/mental models. Generates new insights from existing memories. Configurable iteration counts and timeouts.",
+    "conclusions": "2 - Native via Opinion network. Stores typed beliefs with confidence scores. Supports evolving beliefs: supporting evidence increases confidence, contradictory evidence reduces it. Cara integrates configurable disposition parameters into reasoning. Closest analog to Honcho Conclusions among all systems evaluated.",
+    "peer_card": "1 - Partial. Observation/Mental Model network synthesizes entity summaries (including user entities) from accumulated facts. Not a guaranteed structured profile with fixed identity fields like Honcho Peer Card, but provides synthesized user understanding via reflect.",
+    "prefetch": "2 - Native via Recall operation. 4-way hybrid retrieval (semantic + BM25 + graph + temporal) with cross-encoder reranking assembles relevant context before each LLM response. 50-500ms latency. Zero LLM cost for retrieval.",
+    "dialectic": "0 - No built-in conversational interface to query user memory. Recall returns structured memory results, not conversational synthesis. Would need custom implementation on top of recall API.",
+    "total_coverage": 9
+  },
+  "performance": {
+    "extraction_latency": "Depends on LLM provider. Retain involves multiple LLM calls (extraction + entity resolution). Typically 1-5 seconds per message. Sophisticated token reduction techniques reduce cost but latency depends on backbone model. [uncertain]",
+    "retrieval_latency_p95": "50-500ms for recall. Multi-strategy retrieval with reranking typically 100-600ms. LLM-free recall means no LLM latency added to retrieval.",
+    "benchmark_locomo": "Up to 89.61% (Gemini-3 Pro + TEMPR). OSS-120B backbone: 85.67%. OSS-20B backbone: ~83.6%. Significantly above prior open-source baselines (52.9-75.8%).",
+    "benchmark_longmemeval": "91.4% — best published score as of December 2025. First AI agent memory system to cross 90% threshold. Validated by researchers from Vectorize, The Washington Post, and Virginia Tech. Multi-session questions improved from 21.1% to 79.7%; temporal reasoning from 31.6% to 79.7%; knowledge updates from 60.3% to 84.6%.",
+    "tokens_per_extraction": "Optimized via token reduction techniques in Retain pipeline. Exact token counts not published. Claims significantly lower cost than full-context approaches. With OSS-20B model, surpasses full-context GPT-4o (60.2% on LongMemEval). [uncertain]",
+    "cost_per_1k_messages": "Retrieval is LLM-free (zero LLM cost). Extraction cost depends on chosen provider. Can run entirely locally with Ollama (zero API cost). With cloud LLMs, estimated $1-5 per 1K messages depending on model and message complexity. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "PostgreSQL-based — leverages PostgreSQL's native partitioning and scaling capabilities. Helm chart supports separate scaling for API, Control Plane, and Worker pods. User isolation via agent/user scoping on all operations. [uncertain]",
+    "batch_api": "Retain and recall operations available via HTTP API. Batch processing details not extensively documented. Reflect operation processes accumulated memories in configurable iterations with wall-clock timeout (default 300s). [uncertain]",
+    "max_users_production": "Used in production at Fortune 500 enterprises and growing number of AI startups. Scales to millions of memories. Specific user count not disclosed. [uncertain]",
+    "concurrent_writes": "Kubernetes Helm chart supports separate scaling for API, Control Plane, and Worker pods with PodDisruptionBudget for HA. PostgreSQL handles concurrent writes natively. Known memory leak in entity resolution fixed in v0.4.20 (pending stats/cooccurrences dicts grew unbounded on exceptions). [uncertain]",
+    "storage_per_user": "PostgreSQL with pgvector. Storage depends on embedding dimensions and number of entities/relationships. Likely 2-10MB per user at 1000 memories given the richer data model (4 networks, entities, relationships, time series). [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI, Anthropic, Google Gemini, Groq, Ollama, LM Studio, MiniMax, Volcano Engine. Configurable via HINDSIGHT_API_LLM_PROVIDER environment variable.",
+    "self_hosted_llm": "Yes. Full support for Ollama and LM Studio. Can run entirely locally with zero external API calls. Ollama integration documented with blog post and guides. OSS-20B backbone achieves 83.6% on LongMemEval.",
+    "structured_output_req": "Yes, extraction requires structured output from LLM for fact extraction, entity resolution, and opinion formation. [uncertain]",
+    "embedding_flexibility": "Uses pgvector for embedding storage. Embedding model configurable. Supports embeddings via supported LLM providers (OpenAI, Ollama nomic-embed-text, etc.). hindsight-embed package manages embedding subprocess. [uncertain]"
+  },
+  "production_readiness": {
+    "known_deployments": "Fortune 500 enterprises (unnamed). Growing number of AI startups. Washington Post (research collaboration). Integrations: LangGraph, LangChain, CrewAI, Pydantic AI, AI SDK (Vercel), LiteLLM, MCP server. OpenClaw and NemoClaw integration packages.",
+    "critical_bugs": "1) Memory leak in entity resolution — pending stats/cooccurrences dicts grew unbounded on exceptions (fixed in v0.4.20). 2) Startup crashes and silent retain failures when pg_trgm extension unavailable (fixed in v0.4.20). 3) Reflect operation could hang up to 40 minutes with slow LLM providers (mitigated with 300s wall-clock timeout in v0.4.20). 4) Multiple open issues on GitHub (~759+ issues as of 2026-03-30).",
+    "documentation_quality": "4 - Comprehensive. Dedicated docs site (hindsight.vectorize.io) with API reference, SDK guides, deployment docs, integration tutorials, blog posts. DeepWiki provides architecture deep-dives. Regular blog posts explaining internals (parallel hybrid search, Ollama integration, MCP server). Arxiv paper provides theoretical foundation.",
+    "community_activity": "Active. 6.6K GitHub stars (growing rapidly since Dec 2025 launch). 29 contributors. Regular releases (0.4.x series, multiple per month). Active issue tracker. Integration packages with independent release cycles. Discussions enabled on GitHub.",
+    "api_stability": "Evolving. Integration packages (LiteLLM, Pydantic AI, CrewAI, AI SDK, OpenClaw, LangGraph, NemoClaw) now have independent version numbers decoupled from core server. Entity observations endpoint deprecated and replaced by mental models. Still in 0.x version (pre-1.0), expect API changes. HTTP API documented at hindsight.vectorize.io/api-reference."
+  },
+  "enterprise_fit": {
+    "data_residency": "Yes. Fully self-hostable via Docker or Kubernetes Helm chart. MIT license allows unrestricted deployment. Only requires PostgreSQL — no external service dependencies. Ollama enables fully air-gapped deployment with zero external API calls.",
+    "compliance": "No publicly documented SOC2, HIPAA, or GDPR certifications. Self-hosted deployment allows organizations to manage their own compliance. MIT license has no copyleft restrictions. Enterprise custom plans mention 'security requirements' but specifics not disclosed. 152-FZ: possible via self-hosted only. [uncertain]",
+    "vendor_risk": "LOW-MODERATE. Mitigants: MIT license (permissive, forkable), single PostgreSQL dependency (no exotic infrastructure), growing community (6.6K stars in ~4 months), academic paper with peer validation, Fortune 500 production use. Risks: small company ($3.6M seed only), early-stage product (0.4.x, pre-1.0), 29 contributors (bus factor), rapid API evolution with deprecations (entity observations -> mental models).",
+    "migration_from_honcho": "Strong coverage. Deriver maps to Retain (native). Dreaming maps to Reflect/Cara (native). Conclusions maps to Opinion network with confidence-scored beliefs (native — closest match among evaluated systems). Peer Card partially covered by Mental Models/Observations (synthesized entity summaries, but no fixed schema). Prefetch maps to Recall with 4-way hybrid retrieval (native). Dialectic Chat absent — needs custom building. Migration effort: MODERATE — highest Honcho mechanism coverage (9/12) of evaluated systems. Data model difference: Hindsight uses 4 networks vs Honcho's typed conclusions; Opinion network is closest analog to Honcho Conclusions."
+  },
+  "uncertain": [
+    "extraction_method",
+    "extraction_latency",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "sharding_support",
+    "batch_api",
+    "max_users_production",
+    "concurrent_writes",
+    "storage_per_user",
+    "structured_output_req",
+    "embedding_flexibility",
+    "compliance"
+  ]
+}

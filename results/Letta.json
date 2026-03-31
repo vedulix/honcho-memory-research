@@ -1,0 +1,95 @@
+{
+  "basic_info": {
+    "name": "Letta (formerly MemGPT)",
+    "license": "Apache 2.0",
+    "release_date": "2023-10-12 (MemGPT whitepaper/code); 2024-09-23 (Letta company out of stealth)",
+    "last_commit": "2026-03-16 (main repo); 2026-03-29 (letta-code, letta-evals) [uncertain]",
+    "github_stars": 21600,
+    "contributors": "100+",
+    "company": "Letta Inc. (UC Berkeley BAIR spinout)",
+    "funding": "$10M seed at $70M post-money valuation, led by Felicis (Astasia Myers). Angel investors: Jeff Dean (Google), Clem Delangue (Hugging Face), Cristobal Valenzuela (Runway), Robert Nishihara (Anyscale). Announced September 2024.",
+    "pricing_model": "Open-source self-hosted (free). Letta Cloud: Free tier (limited agents + LLM requests with rotating free models), Pro/Max Lite/Max personal plans with monthly usage quotas, API Plan (pay-as-you-go). Enterprise plan with SSO, RBAC. Credits-based billing for LLM inference and CPU."
+  },
+  "architecture": {
+    "storage_backend": "PostgreSQL with pgvector extension (primary). Self-hosted uses PG directly; cloud uses managed PostgreSQL. Amazon Aurora PostgreSQL-Compatible supported for production. All agent state (memories, tools, messages) persisted in normalized relational tables. Archival memory uses pgvector for semantic search. No external vector DB dependency.",
+    "extraction_method": "Agent self-editing (LLM-based). The agent itself decides what to remember by calling built-in memory tools (core_memory_append, core_memory_replace, archival_memory_insert) during its reasoning loop. No separate extraction pipeline — memory writes are part of the agent's tool-calling behavior. Sleep-time agents run asynchronously between conversations to consolidate and reorganize memory. Each memory operation = 1 LLM inference call within the agent loop.",
+    "dedup_strategy": "Agent-driven deduplication. The agent is responsible for updating/replacing existing memory blocks rather than appending duplicates (via core_memory_replace). Sleep-time agents handle consolidation: merging fragmented memories, deduplicating memory blocks, and archiving outdated information. No explicit vector-similarity dedup pipeline — relies on LLM judgment.",
+    "temporal_support": "Metadata timestamps on memory blocks (created_at, updated_at). Memory metadata includes creation/update dates visible to the agent. Known bug: memory metadata dates not always correctly updated in LLM requests (issue #3146). No bi-temporal model. Recall memory preserves full conversation history with timestamps.",
+    "retrieval_method": "Hybrid. Core memory (memory blocks): always in context window, no retrieval needed — prepended to prompt in XML-like format. Archival memory: semantic vector search via pgvector (archival_memory_search tool). Recall memory: searchable conversation history. Agent decides when to search external memory via tool calls.",
+    "data_model": "Memory blocks paradigm. Three tiers: (1) Core memory — structured labeled text blocks (e.g. 'human', 'persona', 'planning') pinned to context window, editable by agent, sharable between agents; (2) Archival memory — semantically searchable vector store for long-term facts/knowledge, out-of-context; (3) Recall memory — complete conversation history, searchable but out-of-context. Analogous to RAM (core) vs disk (archival/recall). Not fact-extraction triples — free-form text blocks managed by the agent."
+  },
+  "honcho_coverage": {
+    "deriver": {
+      "score": 1,
+      "rationale": "Partial. Letta agents extract facts via self-editing memory tools during conversation, but there is no dedicated extraction pipeline. The agent decides what to store, which is less systematic than a Deriver. Sleep-time agents add async consolidation but are not the same as structured fact extraction from every message."
+    },
+    "dreaming": {
+      "score": 2,
+      "rationale": "Native. Sleep-time agents are a direct analog: they run asynchronously between conversations to consolidate memories, identify patterns, reorganize/deduplicate blocks, resolve contradictions, and archive outdated info. This is essentially offline 'dreaming' over accumulated data."
+    },
+    "conclusions": {
+      "score": 1,
+      "rationale": "Partial. Sleep-time agents can abstract patterns and form connections, and agents can reason about stored memories. However, there is no explicit typed conclusion system (deductive/inductive/abductive). The agent's reasoning is implicit in its tool-calling behavior, not structured conclusion objects."
+    },
+    "peer_card": {
+      "score": 2,
+      "rationale": "Native. Core memory blocks serve as a guaranteed user profile. The 'human' memory block is always present in context and contains core identity fields about the user. Agents can update it, and it persists across all interactions. Functionally equivalent to a Peer Card."
+    },
+    "prefetch": {
+      "score": 2,
+      "rationale": "Native. Every agent call automatically assembles: system prompt + core memory blocks (card equivalent) + relevant context. Memory blocks are always prepended to the prompt. The agent can additionally search archival memory for relevant facts. This is built into the runtime — no manual prefetch needed."
+    },
+    "dialectic": {
+      "score": 1,
+      "rationale": "Partial. You can query an agent about what it remembers and it can search its archival/recall memory. However, there is no dedicated 'dialectic chat' interface for querying user memory as a separate mode. You'd need to build this as a custom tool or agent configuration."
+    },
+    "total_coverage": 9
+  },
+  "performance": {
+    "extraction_latency": "Not separately measurable — memory extraction is embedded in agent response loop. Each agent step (LLM call) tracked via Step Tracking System with latency metrics. Overall agent response latency depends on model used. [uncertain]",
+    "retrieval_latency_p95": "Archival memory search is pgvector semantic search, typically <100ms for the DB query itself. Overall retrieval latency dominated by LLM reasoning about search results. No published p95 numbers. [uncertain]",
+    "benchmark_locomo": "74.0% accuracy on LoCoMo using gpt-4o-mini with filesystem-based conversation storage (Letta's own benchmark blog). This is a baseline approach — simply storing conversation histories in files.",
+    "benchmark_longmemeval": "No published LongMemEval results. Feature request (issue #3115) to add standardized benchmarks including LongMemEval exists but is not yet implemented.",
+    "tokens_per_extraction": "Varies significantly. Each memory operation requires a full agent reasoning step (prompt tokens + completion tokens). The agent's system prompt + core memory blocks + conversation context are sent each time. Estimated 2000-5000+ tokens per memory-modifying step depending on context size and model. [uncertain]",
+    "cost_per_1k_messages": "Highly variable depending on model choice. With GPT-4o-mini: estimated $2-5 per 1K messages. With Claude Opus/GPT-4: $20-50+ per 1K messages. Each message triggers at least one LLM call for response, plus additional calls if memory tools are invoked. Sleep-time agents add background inference costs. Letta Cloud uses credits-based billing. [uncertain]"
+  },
+  "scalability": {
+    "sharding_support": "PostgreSQL-based — supports horizontal scaling via Kubernetes with configurable worker processes and database connection pooling. Aurora PostgreSQL supports read replicas. Agents are naturally isolated by agent_id. No built-in application-level sharding by user_id, but PG partitioning can be applied.",
+    "batch_api": "REST API supports CRUD on agents, memory blocks, archival memory entries. Bulk operations possible via API but no dedicated batch extraction/update endpoint documented. [uncertain]",
+    "max_users_production": "Enterprise plans advertise unlimited agents on Pro/Enterprise tiers. Production deployments on Amazon Aurora PostgreSQL. No published max user count. Letta Cloud serves beta users. [uncertain]",
+    "concurrent_writes": "Server owns all state — no client-side state management. PostgreSQL handles concurrent writes with standard ACID transactions. Background execution mode enables resumable streams that survive disconnects and support load balancing across instances. Sleep-time agents run asynchronously without blocking primary agent.",
+    "storage_per_user": "Depends on memory block sizes and archival memory volume. Core memory blocks are small text (typically <2KB each). Archival memory with pgvector: ~4KB per entry (1536-dim embedding + metadata). At 1000 archival memories: ~4MB per user for vectors + relational data. [uncertain]"
+  },
+  "llm_flexibility": {
+    "supported_providers": "OpenAI, Anthropic, Google AI, Azure OpenAI, AWS Bedrock, Ollama, OpenRouter, LM Studio, and any OpenAI-compatible API via proxy. Letta Cloud also offers 'Letta Auto' with rotating free models.",
+    "self_hosted_llm": "Yes, via Ollama and OpenAI-compatible endpoints. However, Letta is a demanding agent harness requiring strong tool-calling capabilities. Open-weight models generally underperform; recommended to start with frontier models (Claude Opus, GPT-4+). Known bugs with Ollama integration in v0.16.2.",
+    "structured_output_req": "Yes. Letta agents use tool/function calling extensively for memory operations (core_memory_append, core_memory_replace, archival_memory_insert, archival_memory_search). Models must support reliable function calling. This limits viability of smaller open-weight models.",
+    "embedding_flexibility": "OpenAI embeddings supported natively. Anthropic does not provide embeddings — requires separate provider. Letta Cloud offers 'letta-free' embedding endpoint. Custom embedding models can be configured for self-hosted deployments. [uncertain]"
+  },
+  "production_readiness": {
+    "known_deployments": "Letta Cloud serves beta/production users. Amazon Aurora PostgreSQL partnership for production-grade persistence. AWS Marketplace AMI available. Railway deployment template available. No specific named customer deployments publicly disclosed. [uncertain]",
+    "critical_bugs": "v0.16.2 regression: Ollama model switching broken (validation error, issue #3143). Memory metadata not updated correctly — agents report outdated dates (issue #3146). OpenRouter endpoint crashes with AttributeError (issue #3190). LM Studio v0.4.x integration broken (issue #3194). OpenAI proxy model registration breaks agent creation (issue #3133). Multiple provider integration issues open as of March 2026.",
+    "documentation_quality": 4,
+    "community_activity": "Active development: multiple repos updated weekly (March 2026). 100+ contributors. GitHub issues actively filed (10+ new issues in Feb-Mar 2026). Developer community forum exists (forum.letta.com). Regular blog posts and research publications. Issue response time varies.",
+    "api_stability": "Breaking changes between v0.x and v1.0 — SDK migration guide provided. Agent template versioning system documented. Active development means API surface still evolving. v0.16.x releases show regression bugs, suggesting rapid iteration with incomplete testing."
+  },
+  "enterprise_fit": {
+    "data_residency": "Fully self-hostable. Can deploy in own VPC with PostgreSQL/Aurora. Docker and Kubernetes deployment supported. No external data transmission required when self-hosted. AWS Marketplace AMI available for quick deployment.",
+    "compliance": "Self-hosted deployment enables GDPR/152-FZ compliance through infrastructure control. Enterprise plan includes SAML/OIDC SSO, RBAC, tool sandboxing. No explicit SOC2 or HIPAA certification mentioned. Telemetry/monitoring for audit trails. [uncertain]",
+    "vendor_risk": "Moderate. Apache 2.0 license protects against license changes for existing versions. VC-backed startup ($10M seed) — standard early-stage risk. Strong academic pedigree (UC Berkeley BAIR). Active development and growing team. Risk: rapid API evolution, provider integration instability, dependency on function-calling LLM capabilities. Open-source self-hosted option mitigates lock-in.",
+    "migration_from_honcho": "Significant paradigm difference. Honcho uses structured fact extraction + typed conclusions; Letta uses agent self-editing memory blocks. Migration mapping: Honcho Peer Card -> Letta 'human' core memory block (natural fit). Honcho Deriver -> would need custom agent tool or sleep-time agent (different paradigm — no automatic extraction pipeline). Honcho Dreaming -> Letta sleep-time agents (good conceptual match). Honcho Conclusions -> no direct analog, would need custom implementation. Honcho Prefetch -> built-in (memory blocks always in context). Honcho Dialectic -> would need custom agent configuration. Estimated effort: 3-5 weeks to rebuild Honcho's structured extraction and conclusion system on Letta's paradigm."
+  },
+  "uncertain": [
+    "last_commit",
+    "extraction_latency",
+    "retrieval_latency_p95",
+    "tokens_per_extraction",
+    "cost_per_1k_messages",
+    "batch_api",
+    "max_users_production",
+    "storage_per_user",
+    "embedding_flexibility",
+    "known_deployments",
+    "compliance"
+  ]
+}

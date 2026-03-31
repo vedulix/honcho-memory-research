@@ -1,0 +1,170 @@
+categories:
+  basic_info:
+    display_name: "Basic Info"
+    fields:
+      name:
+        description: "Official product/project name"
+        detail_level: brief
+      license:
+        description: "Open-source license (Apache 2.0, MIT, AGPL, proprietary)"
+        detail_level: brief
+      release_date:
+        description: "Initial public release date"
+        detail_level: brief
+      last_commit:
+        description: "Date of most recent commit on main branch"
+        detail_level: brief
+      github_stars:
+        description: "GitHub stars count (as of research date)"
+        detail_level: brief
+      contributors:
+        description: "Number of contributors on GitHub"
+        detail_level: brief
+      company:
+        description: "Company or organization maintaining the project"
+        detail_level: brief
+      funding:
+        description: "Known funding rounds, amounts, investors"
+        detail_level: moderate
+      pricing_model:
+        description: "Free/OSS, freemium, SaaS pricing tiers"
+        detail_level: moderate
+
+  architecture:
+    display_name: "Architecture"
+    fields:
+      storage_backend:
+        description: "Primary storage: vector DB, graph DB, relational, hybrid. Specific products supported."
+        detail_level: detailed
+      extraction_method:
+        description: "How facts are extracted from messages: LLM-based, rule-based, hybrid. Number of LLM calls per message."
+        detail_level: detailed
+      dedup_strategy:
+        description: "How duplicate/contradictory facts are handled: vector similarity, LLM judge, temporal invalidation"
+        detail_level: detailed
+      temporal_support:
+        description: "How fact evolution is tracked: none, metadata timestamps, bi-temporal model"
+        detail_level: detailed
+      retrieval_method:
+        description: "How relevant memories are retrieved: vector search, graph traversal, hybrid, BM25"
+        detail_level: detailed
+      data_model:
+        description: "How memories are structured: flat facts, entity-relation triples, typed conclusions, memory blocks"
+        detail_level: detailed
+
+  honcho_coverage:
+    display_name: "Honcho Mechanism Coverage"
+    fields:
+      deriver:
+        description: "Fact extraction from conversation messages (Honcho Deriver equivalent). Score 0-2: 0=absent, 1=partial, 2=native"
+        detail_level: detailed
+      dreaming:
+        description: "Offline analysis: pattern synthesis, preference shifts, contradiction resolution (Honcho Dreaming). Score 0-2"
+        detail_level: detailed
+      conclusions:
+        description: "Typed conclusions: deductive, inductive, abductive reasoning over user data (Honcho Conclusions). Score 0-2"
+        detail_level: detailed
+      peer_card:
+        description: "Guaranteed user profile with core identity fields (Honcho Peer Card). Score 0-2"
+        detail_level: detailed
+      prefetch:
+        description: "Context assembly before each LLM response: card + relevant facts + summary (Honcho Prefetch). Score 0-2"
+        detail_level: detailed
+      dialectic:
+        description: "Conversational query over user memory: 'tell me what you know about this user' (Honcho Dialectic Chat). Score 0-2"
+        detail_level: detailed
+      total_coverage:
+        description: "Total Honcho mechanism coverage out of 12 (6 mechanisms x 2 max score)"
+        detail_level: brief
+
+  performance:
+    display_name: "Performance"
+    fields:
+      extraction_latency:
+        description: "Time to extract facts from one message (p50/p95)"
+        detail_level: moderate
+      retrieval_latency_p95:
+        description: "Time to retrieve relevant memories for a query (p95)"
+        detail_level: moderate
+      benchmark_locomo:
+        description: "Score on LOCOMO benchmark (long-term memory evaluation)"
+        detail_level: moderate
+      benchmark_longmemeval:
+        description: "Score on LongMemEval benchmark"
+        detail_level: moderate
+      tokens_per_extraction:
+        description: "Average LLM tokens consumed per memory extraction operation"
+        detail_level: moderate
+      cost_per_1k_messages:
+        description: "Estimated LLM API cost to process 1000 user messages (extraction + retrieval)"
+        detail_level: moderate
+
+  scalability:
+    display_name: "Scalability"
+    fields:
+      sharding_support:
+        description: "Native support for horizontal sharding by user_id or other key"
+        detail_level: moderate
+      batch_api:
+        description: "Batch operations for bulk extraction/update/delete"
+        detail_level: moderate
+      max_users_production:
+        description: "Maximum users tested in production deployment"
+        detail_level: moderate
+      concurrent_writes:
+        description: "How concurrent writes from multiple users are handled"
+        detail_level: moderate
+      storage_per_user:
+        description: "Estimated storage per user at 1000 memories"
+        detail_level: moderate
+
+  llm_flexibility:
+    display_name: "LLM Flexibility"
+    fields:
+      supported_providers:
+        description: "LLM providers supported: OpenAI, Anthropic, Google, custom/self-hosted"
+        detail_level: moderate
+      self_hosted_llm:
+        description: "Can use self-hosted models (vLLM, Ollama, etc.) for extraction"
+        detail_level: moderate
+      structured_output_req:
+        description: "Does extraction require structured output / function calling from the LLM"
+        detail_level: moderate
+      embedding_flexibility:
+        description: "Supported embedding models and providers"
+        detail_level: moderate
+
+  production_readiness:
+    display_name: "Production Readiness"
+    fields:
+      known_deployments:
+        description: "Known production deployments with scale details"
+        detail_level: detailed
+      critical_bugs:
+        description: "Critical open issues/bugs that affect production use"
+        detail_level: detailed
+      documentation_quality:
+        description: "Quality of documentation: comprehensive, sparse, outdated. Score 1-5"
+        detail_level: moderate
+      community_activity:
+        description: "Community health: issues/month, PRs/month, response time"
+        detail_level: moderate
+      api_stability:
+        description: "API stability: breaking changes frequency, versioning policy"
+        detail_level: moderate
+
+  enterprise_fit:
+    display_name: "Enterprise Fit"
+    fields:
+      data_residency:
+        description: "Can be fully self-hosted for data sovereignty requirements"
+        detail_level: moderate
+      compliance:
+        description: "GDPR, SOC2, HIPAA, 152-ФЗ compliance or readiness"
+        detail_level: moderate
+      vendor_risk:
+        description: "Risk of vendor lock-in, project abandonment, license change"
+        detail_level: detailed
+      migration_from_honcho:
+        description: "Effort to migrate from Honcho: which mechanisms transfer, what needs rebuilding"
+        detail_level: detailed
