@@ -3,6 +3,49 @@
 > Единый исследовательский отчет: 20+ платформ памяти для AI-агентов
 > Дата: 2026-03-31
 
+## Содержание
+
+- [TL;DR: Четыре кандидата на замену Honcho](#tldr-четыре-кандидата-на-замену-honcho)
+- [Executive Summary](#executive-summary)
+  - [Ключевой вопрос](#ключевой-вопрос)
+  - [Контекст](#контекст)
+  - [Вердикт](#вердикт)
+  - [Top 3 рекомендации](#top-3-рекомендации)
+  - [Ключевые выводы](#ключевые-выводы)
+  - [Что строить: mapping Honcho -> enterprise-стек](#что-строить-mapping-honcho---enterprise-стек)
+- [Критерии оценки](#критерии-оценки)
+- [Сводная таблица: все решения](#сводная-таблица-все-решения)
+  - [Tier 1 — серьёзные кандидаты (deep dive проведён)](#tier-1--серьёзные-кандидаты-deep-dive-проведён)
+  - [Tier 2 — нишевые или менее зрелые](#tier-2--нишевые-или-менее-зрелые)
+  - [Tier 3 — не подходят (лицензия или модель)](#tier-3--не-подходят-лицензия-или-модель)
+- [Honcho Mechanism Coverage Matrix](#honcho-mechanism-coverage-matrix)
+- [Decision Matrix](#decision-matrix)
+  - [Результат](#результат)
+  - [Sensitivity Analysis](#sensitivity-analysis)
+- [Detailed Profiles](#detailed-profiles)
+  - [Honcho](#honcho)
+  - [EverMemOS](#evermemos)
+  - [Hindsight](#hindsight)
+  - [Letta](#letta)
+  - [Memobase](#memobase)
+  - [Microsoft Foundry Memory](#microsoft-foundry-memory)
+  - [Memori](#memori)
+  - [Cognee](#cognee)
+  - [Graphiti](#graphiti)
+  - [MemOS](#memos)
+  - [Mem0](#mem0)
+  - [A-MEM](#a-mem)
+- [Почему без Graphiti](#почему-без-graphiti)
+- [Community Insights: русскоязычные AI/Agent-чаты](#community-insights-русскоязычные-aiagent-чаты)
+- [Roadmap: от прототипа до 50M+ пользователей](#roadmap-от-прототипа-до-50m-пользователей)
+  - [Phase 1: Prototype (Months 1-2)](#phase-1-prototype-months-1-2)
+  - [Phase 2: MVP (Months 3-4)](#phase-2-mvp-months-3-4)
+  - [Phase 3: Scale (Months 5-8)](#phase-3-scale-months-5-8)
+  - [Phase 4: Enterprise (Months 9-12)](#phase-4-enterprise-months-9-12)
+- [Бенчмарки: сводная таблица](#бенчмарки-сводная-таблица)
+- [Лицензии: полная сводка](#лицензии-полная-сводка)
+- [Ссылки](#ссылки)
+
 ---
 
 ## TL;DR: Четыре кандидата на замену Honcho
