@@ -1,7 +1,21 @@
 # AI Memory Platforms: Enterprise-Scale Alternative to Honcho
 
-> Исследовательский отчет по 12 платформам памяти для AI-агентов
+> Исследовательский отчет по 14 платформам памяти для AI-агентов
 > Дата: 2026-03-31
+
+---
+
+## TL;DR: Четыре кандидата на замену Honcho
+
+| | **Hindsight** | **EverMemOS** | **Letta** | **mem0** |
+|---|---|---|---|---|
+| **Механики Honcho** | 9/12 | 10/12 | 9/12 | 3/12 |
+| **Лицензия** | MIT | Apache 2.0 | Apache 2.0 | Apache 2.0 |
+| **Инфра** | PostgreSQL only | MongoDB + ES + Milvus | PostgreSQL, K8s | 23+ vector backends |
+| **Масштаб** | PG шардится стандартно, но проект молодой — на 50M не проверяли | Каждая из 3 баз шардится, но три точки отказа | K8s-деплой, Conversations API для шардинга по юзерам | Нет batch API в OSS, нет шардинга, каждый write = LLM call (20 сек) |
+| **Ключевая фича** | Opinion network ≈ Conclusions, zero-LLM retrieval | Лучший бенчмарк (93% LoCoMo), нативный Peer Card + Dreaming | Sleep-time agents ≈ Dreaming, зрелое community ($10M, 21K stars) | Extraction + dedup, крупнейшее community (48K stars, $24M) |
+| **Главный риск** | Проекту полгода, маленькая команда | Мало документации, ранний проект | Другая парадигма (agent-managed memory) | 70% логики памяти надо строить с нуля |
+| **Вопрос к инфре** | Есть ли managed PG с pgvector? | Готовы держать 3 базы? | Ложится ли agent-managed memory на кейс? | Если 70% пишем сами — зачем брать mem0? |
 
 ---
 
